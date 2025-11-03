@@ -1,0 +1,21 @@
+{
+  "name": "sportns",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SportNS Community Sports Platform - Mobile-first sports platform with real-time availability and ELO rankings",
+  "scripts": {
+    "mobile": "pnpm --filter mobile start",
+    "mobile:ios": "pnpm --filter mobile ios",
+    "mobile:android": "pnpm --filter mobile android",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  },
+  "keywords": ["sports", "community", "mobile", "react-native", "expo"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
+
