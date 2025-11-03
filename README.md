@@ -60,10 +60,16 @@ SportNS/
 pnpm install
 ```
 
-2. Set up environment variables:
+2. Set up Supabase and environment variables:
 ```bash
-cp apps/mobile/.env.example apps/mobile/.env
-# Edit .env with your Supabase credentials (Day 1 task pending)
+# Follow the setup guide to create your Supabase project
+# See: supabase/SETUP_GUIDE.md
+
+# Then create your .env file with Supabase credentials
+cat > apps/mobile/.env << EOF
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url_here
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+EOF
 ```
 
 3. Start the development server:
@@ -118,8 +124,8 @@ pnpm --filter mobile <command>
 - [x] Configure TypeScript
 - [x] Create project structure
 - [x] Install core dependencies
-- [ ] Create Supabase project (pending)
-- [ ] Design database schema (pending)
+- [x] Create Supabase project (see `supabase/SETUP_GUIDE.md`)
+- [x] Design database schema (migrations ready in `supabase/migrations/`)
 
 ### 📋 Upcoming
 
