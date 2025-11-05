@@ -42,7 +42,7 @@ const SecureStoreAdapter = {
       // Remove old non-chunked value if it exists
       try {
         await SecureStore.deleteItemAsync(key);
-      } catch (e) {
+      } catch {
         // Ignore error if key doesn't exist
       }
     } else {
@@ -59,7 +59,7 @@ const SecureStoreAdapter = {
           }
           await SecureStore.deleteItemAsync(`${key}_chunk_count`);
         }
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
@@ -75,7 +75,7 @@ const SecureStoreAdapter = {
         }
         await SecureStore.deleteItemAsync(`${key}_chunk_count`);
       }
-    } catch (e) {
+    } catch {
       // Ignore errors
     }
     

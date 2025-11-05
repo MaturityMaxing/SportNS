@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithDiscord } from '../services/auth';
 
 /**
@@ -32,7 +33,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.logo}>🏀</Text>
         <Text style={styles.title}>SportNS</Text>
@@ -73,7 +74,7 @@ export default function LoginScreen() {
           By signing in, you agree to our Terms of Service and Privacy Policy
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    paddingTop: 80,
+    paddingTop: 40,
     paddingBottom: 40,
     alignItems: 'center',
     backgroundColor: '#5865F2',
@@ -149,7 +150,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 24,
-    paddingBottom: 40,
   },
   discordButton: {
     backgroundColor: '#5865F2',

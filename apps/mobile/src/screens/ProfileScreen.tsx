@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCurrentUser, getProfile, signOut } from '../services/auth';
 import type { Profile } from '../types';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 
 /**
  * ProfileScreen - Display user profile and logout
@@ -34,6 +36,7 @@ export default function ProfileScreen() {
           // Profile doesn't exist yet, might still be creating
           console.warn('Profile not found, it may still be creating. Retrying in 2 seconds...');
           // Wait a bit and retry once
+          // eslint-disable-next-line no-undef
           await new Promise(resolve => setTimeout(resolve, 2000));
           const retryProfileData = await getProfile(user.id);
           setProfile(retryProfileData);
@@ -78,7 +81,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#5865F2" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -101,7 +104,8 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
           {profile.discord_avatar_url ? (
@@ -176,7 +180,8 @@ export default function ProfileScreen() {
         <Text style={styles.footerText}>SportNS v1.0.0</Text>
         <Text style={styles.footerText}>Community Sports Platform</Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -213,161 +218,165 @@ function StatCard({ title, value, icon }: StatCardProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: '#5865F2',
-    paddingTop: 60,
-    paddingBottom: 30,
+    backgroundColor: Colors.primary,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.xl,
     alignItems: 'center',
   },
   avatarContainer: {
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   avatar: {
     width: 100,
     height: 100,
-    borderRadius: 50,
+    borderRadius: BorderRadius.full,
     borderWidth: 4,
-    borderColor: '#fff',
+    borderColor: Colors.textInverse,
   },
   avatarPlaceholder: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.textInverse,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarPlaceholderText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#5865F2',
+    fontSize: Typography.fontSize.huge,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.primary,
   },
   username: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    fontSize: Typography.fontSize.xxl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textInverse,
+    marginBottom: Spacing.xs,
   },
   userId: {
-    fontSize: 14,
-    color: '#fff',
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textInverse,
     opacity: 0.8,
   },
   section: {
-    backgroundColor: '#fff',
-    marginTop: 16,
-    padding: 20,
+    backgroundColor: Colors.surface,
+    marginTop: Spacing.md,
+    padding: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.borderLight,
   },
   infoLabel: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: Typography.fontSize.md,
+    color: Colors.textSecondary,
   },
   infoValue: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: Typography.fontSize.md,
+    color: Colors.text,
+    fontWeight: Typography.fontWeight.medium,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: Spacing.sm,
   },
   statCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#f9f9f9',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.backgroundSecondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
   statIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: Typography.fontSize.xxxl,
+    marginBottom: Spacing.sm,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: Typography.fontSize.xxl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
   },
   statTitle: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   settingButton: {
-    paddingVertical: 16,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.borderLight,
   },
   settingButtonText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: Typography.fontSize.md,
+    color: Colors.text,
   },
   signOutButton: {
-    backgroundColor: '#dc3545',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.error,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Shadows.small,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   signOutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.textInverse,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
   },
   footer: {
-    padding: 20,
+    padding: Spacing.lg,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textTertiary,
     marginVertical: 2,
   },
   errorText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: Typography.fontSize.md,
+    color: Colors.textSecondary,
   },
   errorSubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: Spacing.sm,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
   },
   retryButton: {
-    marginTop: 20,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    backgroundColor: '#5865F2',
-    borderRadius: 8,
+    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.textInverse,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
   },
 });
 

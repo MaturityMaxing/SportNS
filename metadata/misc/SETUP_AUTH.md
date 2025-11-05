@@ -144,5 +144,4 @@ After authentication is working:
 1. Test profile creation
 2. Verify user data in Supabase Dashboard
 3. Test sign out functionality
-4. Move on to Day 3: Navigation & UI Foundation
 
