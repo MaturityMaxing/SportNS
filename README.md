@@ -2,8 +2,6 @@
 
 A mobile-first community sports platform that connects local players through real-time availability tracking and competitive ELO-based rankings across 9 different sports.
 
-## Project Status: Day 1/14 Complete ✅
-
 ### Features
 
 - 🎮 Discord Authentication with OAuth
@@ -23,26 +21,6 @@ Basketball, Pickleball, Volleyball, Football, Ping Pong, Badminton, Tennis, Golf
 - **Backend**: Supabase (PostgreSQL, Auth, Realtime subscriptions, Edge Functions)
 - **Deployment**: Expo EAS Build
 - **Package Manager**: pnpm workspaces (monorepo)
-
-## Project Structure
-
-```
-SportNS/
-├── apps/
-│   └── mobile/              # React Native Expo app
-│       ├── src/
-│       │   ├── screens/     # App screens
-│       │   ├── components/  # Reusable UI components
-│       │   ├── services/    # API and service layer
-│       │   ├── hooks/       # Custom React hooks
-│       │   ├── types/       # TypeScript type definitions
-│       │   └── utils/       # Utility functions
-│       ├── assets/          # Images and static assets
-│       └── app.json         # Expo configuration
-├── packages/                # Shared packages (future)
-├── pnpm-workspace.yaml      # pnpm workspace config
-└── package.json             # Root package.json
-```
 
 ## Getting Started
 
@@ -116,26 +94,6 @@ pnpm --filter mobile add <package-name>
 pnpm --filter mobile <command>
 ```
 
-## Implementation Progress
-
-### ✅ Day 1: Foundation (Complete)
-- [x] Initialize monorepo with pnpm workspaces
-- [x] Set up Expo React Native project
-- [x] Configure TypeScript
-- [x] Create project structure
-- [x] Install core dependencies
-- [x] Create Supabase project (see `supabase/SETUP_GUIDE.md`)
-- [x] Design database schema (migrations ready in `supabase/migrations/`)
-
-### 📋 Upcoming
-
-**Day 2**: Discord OAuth authentication flow  
-**Day 3**: React Navigation setup with bottom tabs  
-**Days 4-6**: Free Play mode with real-time availability  
-**Days 7-10**: Leaderboards and challenge system  
-**Days 11-13**: Score verification and ELO calculation  
-**Day 14**: Polish and final testing  
-
 ## Key Dependencies
 
 - **expo** - React Native framework
@@ -156,7 +114,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 ## Contributing
 
-This is a structured 14-day implementation project. See `prd.md` for the complete Product Requirements Document and implementation plan.
+This is a structured 14-day implementation project. See `PRD.md` for the complete Product Requirements Document and implementation plan.
 
 ## License
 
