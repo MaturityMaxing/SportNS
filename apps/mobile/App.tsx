@@ -3,33 +3,47 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LoginScreen, HomeScreen } from './src/screens';
+import { UsernameScreen, OnboardingScreen, HomeScreen } from './src/screens';
 import { LoadingScreen } from './src/components';
-import { onAuthStateChange } from './src/services/auth';
+import { onAuthStateChange, getProfile } from './src/services/auth';
 import { Colors } from './src/theme';
 import type { Session } from '@supabase/supabase-js';
+import type { Profile } from './src/types';
 
 /**
  * SportNS - Community Sports Platform
- * Day 3: Navigation & UI Foundation Implemented
+ * V2: Username-based auth with skill evaluation onboarding
  * 
- * Features:
- * - Discord OAuth login
- * - Session management
- * - Bottom tab navigation (Free Play, Leaderboards, Profile)
- * - Theme system with consistent styling
- * - Shared UI components
+ * Auth Flow:
+ * 1. No session → UsernameScreen
+ * 2. Session but no profile/username → UsernameScreen
+ * 3. Session + profile but onboarding_completed = false → OnboardingScreen
+ * 4. Session + profile + onboarding_completed = true → HomeScreen
  */
+
+type AppState = 
+  | { state: 'loading' }
+  | { state: 'username' }
+  | { state: 'onboarding'; profile: Profile }
+  | { state: 'home'; profile: Profile };
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [appState, setAppState] = useState<AppState>({ state: 'loading' });
 
   useEffect(() => {
     // Set up auth state listener
-    const { data: authListener } = onAuthStateChange((_event, session) => {
+    const { data: authListener } = onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', _event, session?.user?.id);
       setSession(session);
-      setIsLoading(false);
+      
+      if (session?.user) {
+        // User is authenticated, check profile and onboarding status
+        await checkProfileAndOnboarding(session.user.id);
+      } else {
+        // No session, show username screen
+        setAppState({ state: 'username' });
+      }
     });
 
     // Cleanup subscription on unmount
@@ -38,8 +52,54 @@ export default function App() {
     };
   }, []);
 
-  // Show loading screen while checking auth state
-  if (isLoading) {
+  const checkProfileAndOnboarding = async (userId: string) => {
+    try {
+      const profile = await getProfile(userId);
+      
+      if (!profile || !profile.username) {
+        // No profile or username, show username screen
+        setAppState({ state: 'username' });
+        return;
+      }
+
+      if (!profile.onboarding_completed) {
+        // Profile exists but onboarding not completed
+        setAppState({ state: 'onboarding', profile });
+        return;
+      }
+
+      // Profile complete, show home
+      setAppState({ state: 'home', profile });
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      // On error, default to username screen
+      setAppState({ state: 'username' });
+    }
+  };
+
+  const handleUsernameSuccess = async (profile: Profile, isNewUser: boolean) => {
+    console.log('Username auth success:', profile.username, isNewUser);
+    
+    if (isNewUser || !profile.onboarding_completed) {
+      // New user or returning user who hasn't completed onboarding
+      setAppState({ state: 'onboarding', profile });
+    } else {
+      // Returning user with completed onboarding
+      setAppState({ state: 'home', profile });
+    }
+  };
+
+  const handleOnboardingComplete = async () => {
+    console.log('Onboarding completed');
+    
+    // Refresh profile to get updated onboarding status
+    if (session?.user) {
+      await checkProfileAndOnboarding(session.user.id);
+    }
+  };
+
+  // Show loading screen
+  if (appState.state === 'loading') {
     return (
       <SafeAreaProvider>
         <LoadingScreen message="Loading SportNS..." />
@@ -48,12 +108,27 @@ export default function App() {
     );
   }
 
-  // Show appropriate screen based on auth state
+  // Render appropriate screen based on app state
   return (
     <SafeAreaProvider>
       <NavigationContainer>
         <View style={styles.container}>
-          {session ? <HomeScreen /> : <LoginScreen />}
+          {appState.state === 'username' && (
+            <UsernameScreen onSuccess={handleUsernameSuccess} />
+          )}
+          
+          {appState.state === 'onboarding' && (
+            <OnboardingScreen
+              userId={appState.profile.id}
+              username={appState.profile.username || 'User'}
+              onComplete={handleOnboardingComplete}
+            />
+          )}
+          
+          {appState.state === 'home' && (
+            <HomeScreen />
+          )}
+          
           <StatusBar style="auto" />
         </View>
       </NavigationContainer>

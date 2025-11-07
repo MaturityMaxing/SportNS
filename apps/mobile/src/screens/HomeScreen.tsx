@@ -1,23 +1,27 @@
 import React from 'react';
 import { Text, TextStyle } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FreePlayScreen } from './FreePlayScreen';
+import { MyGamesScreen } from './MyGamesScreen';
+import { DashboardScreen } from './DashboardScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
 import ProfileScreen from './ProfileScreen';
 import { Colors, Typography } from '../theme';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 /**
- * HomeScreen - Bottom tab navigation container
- * Contains: Free Play, Leaderboards, Profile
+ * MainTabs - Bottom tab navigation with 3 tabs
+ * Contains: My Games, Dashboard, Leagues
  */
-export const HomeScreen: React.FC = () => {
+const MainTabs: React.FC = () => {
   const insets = useSafeAreaInsets();
   
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
@@ -37,30 +41,47 @@ export const HomeScreen: React.FC = () => {
       }}
     >
       <Tab.Screen
-        name="FreePlay"
-        component={FreePlayScreen}
+        name="MyGames"
+        component={MyGamesScreen}
         options={{
-          tabBarLabel: 'Free Play',
-          tabBarIcon: ({ color }) => <TabIcon icon="🏀" color={color} />,
+          tabBarLabel: 'My Games',
+          tabBarIcon: ({ color }) => <TabIcon icon="📋" color={color} />,
         }}
       />
       <Tab.Screen
-        name="Leaderboards"
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: 'Dashboard',
+          tabBarIcon: ({ color }) => <TabIcon icon="🎮" color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Leagues"
         component={LeaderboardsScreen}
         options={{
-          tabBarLabel: 'Leaderboards',
+          tabBarLabel: 'Leagues',
           tabBarIcon: ({ color }) => <TabIcon icon="🏆" color={color} />,
         }}
       />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => <TabIcon icon="👤" color={color} />,
-        }}
-      />
     </Tab.Navigator>
+  );
+};
+
+/**
+ * HomeScreen - Main navigation container with Stack Navigator
+ * Wraps tabs and includes Profile screen outside of tabs
+ */
+export const HomeScreen: React.FC = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+    </Stack.Navigator>
   );
 };
 

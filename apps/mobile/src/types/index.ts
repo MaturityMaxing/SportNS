@@ -1,19 +1,118 @@
 // Shared TypeScript types for the SportNS mobile app
 
+// ============================================================================
+// Core Types
+// ============================================================================
+
 export type Sport = {
   id: number;
   name: string;
   slug: string;
+  icon?: string;
 };
+
+// ============================================================================
+// Skill Level Types (New in V2)
+// ============================================================================
+
+export type SkillLevel = 
+  | 'never_played'
+  | 'beginner'
+  | 'average'
+  | 'pro'
+  | 'expert';
+
+export const SKILL_LEVELS: SkillLevel[] = [
+  'never_played',
+  'beginner',
+  'average',
+  'pro',
+  'expert',
+];
+
+export const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
+  never_played: 'Never Played',
+  beginner: 'Beginner',
+  average: 'Average',
+  pro: 'Pro',
+  expert: 'Expert',
+};
+
+export const SKILL_LEVEL_DESCRIPTIONS: Record<SkillLevel, string> = {
+  never_played: 'No experience',
+  beginner: 'Just starting out',
+  average: 'Comfortable playing',
+  pro: 'Very skilled',
+  expert: 'Top-tier player',
+};
+
+// ============================================================================
+// Profile Types (Updated in V2)
+// ============================================================================
 
 export type Profile = {
   id: string;
-  discord_id: string;
-  discord_username: string;
-  discord_avatar_url: string;
+  discord_id?: string | null;
+  discord_username?: string | null;
+  discord_avatar_url?: string | null;
+  username: string | null;
+  onboarding_completed: boolean;
   expo_push_token: string | null;
   created_at: string;
+  updated_at: string;
 };
+
+export type PlayerSkillLevel = {
+  id: string;
+  player_id: string;
+  sport_id: number;
+  skill_level: SkillLevel;
+  updated_at: string;
+};
+
+// ============================================================================
+// Game Event Types (New in V2)
+// ============================================================================
+
+export type TimeType = 'now' | 'time_of_day' | 'precise';
+
+export type GameStatus = 'waiting' | 'confirmed' | 'completed' | 'cancelled';
+
+export type GameEvent = {
+  id: string;
+  sport_id: number;
+  creator_id: string;
+  min_players: number;
+  max_players: number;
+  skill_level_min: SkillLevel | null;
+  skill_level_max: SkillLevel | null;
+  scheduled_time: string;
+  time_type: TimeType;
+  time_label: string | null;
+  status: GameStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameParticipant = {
+  id: string;
+  game_id: string;
+  player_id: string;
+  joined_at: string;
+};
+
+// Extended game event type with additional data
+export type GameEventWithDetails = GameEvent & {
+  sport?: Sport;
+  creator?: Profile;
+  current_players?: number;
+  participants?: Profile[];
+  is_joined?: boolean;
+};
+
+// ============================================================================
+// Legacy Types (Preserved for future competitive features)
+// ============================================================================
 
 export type PlayerAvailability = {
   id: string;
@@ -62,7 +161,10 @@ export type GameScore = {
   confirmed: boolean;
 };
 
-// Extended types with joined data
+// ============================================================================
+// Extended Types with Joined Data
+// ============================================================================
+
 export type PlayerWithAvailability = Profile & {
   availability?: PlayerAvailability;
 };
@@ -76,5 +178,33 @@ export type ChallengeWithDetails = Challenge & {
   challenger?: Profile;
   challenged?: Profile;
   scores?: GameScore[];
+};
+
+export type PlayerWithSkills = Profile & {
+  skills?: PlayerSkillLevel[];
+};
+
+// ============================================================================
+// UI Helper Types
+// ============================================================================
+
+export type SkillLevelSelection = {
+  sport_id: number;
+  skill_level: SkillLevel | null;
+};
+
+export type TimeOfDayOption = 
+  | 'before_lunch'
+  | 'after_lunch'
+  | 'before_dinner'
+  | 'after_dinner'
+  | 'tomorrow_morning';
+
+export const TIME_OF_DAY_OPTIONS: Record<TimeOfDayOption, { label: string; hour: number }> = {
+  before_lunch: { label: 'Before Lunch', hour: 11 },
+  after_lunch: { label: 'After Lunch', hour: 14 },
+  before_dinner: { label: 'Before Dinner', hour: 17 },
+  after_dinner: { label: 'After Dinner', hour: 20 },
+  tomorrow_morning: { label: 'Tomorrow Morning', hour: 9 },
 };
 

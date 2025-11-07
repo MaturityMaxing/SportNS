@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { Card, EmptyState } from '../components';
+import { TopNav, Card, EmptyState } from '../components';
+import { getCurrentUser, getProfile } from '../services/auth';
+import type { Profile } from '../types';
 
 // Sport icons (same as FreePlayScreen)
 const SPORTS = [
@@ -34,10 +36,42 @@ interface LeaderboardEntry {
 }
 
 export const LeaderboardsScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [selectedSport, setSelectedSport] = useState<number>(1); // Default to Basketball
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   // Placeholder data - will be replaced with real data in Day 7
   const mockLeaderboard: LeaderboardEntry[] = [];
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        const profileData = await getProfile(user.id);
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
+
+  const handleProfilePress = () => {
+    navigation.navigate('Profile' as never);
+  };
+
+  const getUserInitial = () => {
+    if (profile?.username) {
+      return profile.username.charAt(0).toUpperCase();
+    }
+    if (profile?.discord_username) {
+      return profile.discord_username.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
 
   const renderSportSelector = () => (
     <ScrollView
@@ -113,10 +147,19 @@ export const LeaderboardsScreen: React.FC = () => {
   const selectedSportName = SPORTS.find(s => s.id === selectedSport)?.name;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
+      <TopNav 
+        title="NS SPORTS"
+        rightAction={{
+          icon: '👤',
+          label: getUserInitial(),
+          onPress: handleProfilePress,
+        }}
+      />
+
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Leaderboards</Text>
+        <Text style={styles.title}>Leagues</Text>
         <Text style={styles.subtitle}>
           Compete and climb the rankings in your favorite sports
         </Text>
@@ -143,7 +186,7 @@ export const LeaderboardsScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
