@@ -53,7 +53,6 @@ export default function ProfileScreen() {
           // Profile doesn't exist yet, might still be creating
           console.warn('Profile not found, it may still be creating. Retrying in 2 seconds...');
           // Wait a bit and retry once
-          // eslint-disable-next-line no-undef
           await new Promise(resolve => setTimeout(resolve, 2000));
           const retryProfileData = await getProfile(user.id);
           setProfile(retryProfileData);

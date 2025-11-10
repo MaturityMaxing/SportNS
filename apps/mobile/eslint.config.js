@@ -55,6 +55,11 @@ module.exports = [
         Symbol: 'readonly',
         Proxy: 'readonly',
         Reflect: 'readonly',
+        // Timer globals
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     plugins: {
