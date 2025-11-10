@@ -6,4 +6,5 @@ export { LeaderboardsScreen } from './LeaderboardsScreen';
 export { HomeScreen } from './HomeScreen';
 export { UsernameScreen } from './UsernameScreen';
 export { OnboardingScreen } from './OnboardingScreen';
+export { PostGameScreen } from './PostGameScreen';
 

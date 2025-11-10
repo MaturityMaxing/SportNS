@@ -73,6 +73,10 @@ export const DashboardScreen: React.FC = () => {
     navigation.navigate('Profile' as never);
   };
 
+  const handlePostGame = () => {
+    navigation.navigate('PostGame' as never);
+  };
+
   const loadGames = async () => {
     try {
       const gamesData = await getActiveGames(selectedSport || undefined);
@@ -262,6 +266,22 @@ export const DashboardScreen: React.FC = () => {
           </ScrollView>
         </View>
 
+        {/* Post Game Button */}
+        <View style={styles.postButtonSection}>
+          <TouchableOpacity 
+            style={styles.postButton}
+            onPress={handlePostGame}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.postButtonIcon}>📢</Text>
+            <View style={styles.postButtonTextContainer}>
+              <Text style={styles.postButtonTitle}>Post a New Game</Text>
+              <Text style={styles.postButtonSubtitle}>Create a game and invite players</Text>
+            </View>
+            <Text style={styles.postButtonArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Games List */}
         <View style={styles.gamesSection}>
           {filteredGames.length === 0 ? (
@@ -296,7 +316,7 @@ interface GameCardProps {
 }
 
 const GameCard: React.FC<GameCardProps> = ({ game, onJoin, onLeave, formatTime }) => {
-  const isFull = game.current_players >= game.max_players;
+  const isFull = (game.current_players ?? 0) >= game.max_players;
   const isConfirmed = game.status === 'confirmed';
   const timeString = formatTime(game.scheduled_time, game.time_type);
 
@@ -433,6 +453,44 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: Colors.textInverse,
+  },
+  // Post Button Section
+  postButtonSection: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  postButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.md,
+    ...Shadows.medium,
+  },
+  postButtonIcon: {
+    fontSize: 32,
+  },
+  postButtonTextContainer: {
+    flex: 1,
+  },
+  postButtonTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textInverse,
+    marginBottom: 2,
+  },
+  postButtonSubtitle: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textInverse,
+    opacity: 0.9,
+  },
+  postButtonArrow: {
+    fontSize: Typography.fontSize.xxl,
+    color: Colors.textInverse,
+    fontWeight: Typography.fontWeight.bold,
   },
   // Games Section
   gamesSection: {

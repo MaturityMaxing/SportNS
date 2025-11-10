@@ -1,10 +1,29 @@
 import { supabase } from './supabase';
-import type { /*GameEvent,*/ GameEventWithDetails, /*Sport, Profile*/ } from '../types';
+import type { /*GameEvent,*/ GameEventWithDetails, Sport, /*Profile*/ } from '../types';
 
 /**
  * Game Events Service
  * Handles CRUD operations for game events and participants
  */
+
+/**
+ * Get all sports
+ */
+export const getSports = async (): Promise<Sport[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('sports')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching sports:', error);
+    throw error;
+  }
+};
 
 /**
  * Get all active game events (waiting or confirmed)
