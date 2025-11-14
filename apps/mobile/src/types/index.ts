@@ -101,6 +101,19 @@ export type GameParticipant = {
   joined_at: string;
 };
 
+export type GameChatMessage = {
+  id: string;
+  game_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+};
+
+export type GameChatMessageWithSender = GameChatMessage & {
+  sender?: Profile;
+  sender_username?: string;
+};
+
 // Extended game event type with additional data
 export type GameEventWithDetails = GameEvent & {
   sport?: Sport;

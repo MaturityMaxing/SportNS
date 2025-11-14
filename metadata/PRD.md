@@ -157,19 +157,80 @@ View all games the user has joined
 - Games where current player count >= min_players
 - Status: `status = 'confirmed'` or player count check
 - Shows: Sport, time, players, location (future)
-- Action: "Leave Game" button
+- Action: Tap card to navigate to Game Detail Page
 
 **B. Waiting for Players**
 - Games where current player count < min_players
 - Status: `status = 'waiting'`
 - Shows: Sport, time, "X/Y players joined"
-- Action: "Leave Game" button
+- Action: Tap card to navigate to Game Detail Page
 
-**Leave Game Logic:**
-- Removes user from `game_participants`
-- If user was the last/only player → delete entire game event
-- If confirmed game loses players → may revert to "waiting" status
+**Navigation:**
+- Each game card is tappable
+- Tapping navigates to individual Game Detail Page
+- All game management actions moved to detail page
 - Real-time updates via Supabase subscriptions
+
+---
+
+### 6.5. Game Detail Page
+
+**Purpose:**
+Detailed view of a specific game accessed from My Games screen
+
+**Access:**
+- Tap any game card in My Games → Navigate to detail page
+
+**Features:**
+
+**A. Game Information Section**
+- Sport type with icon
+- Scheduled time (formatted display)
+- Current players / Min-Max players
+- Skill level requirements (if any)
+- Creator username
+- Game status (confirmed/waiting)
+
+**B. Player List**
+- Display all participants with usernames
+- Real-time updates when players join/leave
+- Show current count vs max capacity
+
+**C. Share Game**
+- "Share Game" button
+- Generates shareable text/deep link containing:
+  - Sport, time, location (future), player count
+  - App download link for users without the app
+  - Join link that opens game detail if app installed
+- Uses native share sheet (iOS/Android)
+
+**D. Leave Game**
+- "Leave Game" button (moved from My Games list)
+- Removes user from `game_participants`
+- If last player → deletes entire game event
+- Returns to My Games screen after leaving
+
+**E. End Game**
+- "End Game" button available to ALL participants
+- Shows 5-second countdown confirmation dialogue
+- Confirmation shows: "Are you sure? This will end the game for everyone."
+- If confirmed: Sets game status to 'completed'
+- Completed games removed from My Games
+- Prevents accidental game endings
+
+**F. Chat Section**
+- Real-time plain text chat
+- Visible to all game participants only
+- Uses Supabase Realtime
+- Messages stored in new `game_chat_messages` table
+- Display: Username + message + timestamp
+- Auto-scrolls to latest message
+- Text input at bottom
+
+**Real-time Updates:**
+- Player joins/leaves update list instantly
+- New chat messages appear instantly
+- Game status changes update UI
 
 ---
 
@@ -318,6 +379,31 @@ game_participants:
 - Many-to-many relationship between players and games
 - Enables "My Games" queries
 - Creator is automatically added as first participant
+
+---
+
+#### `game_chat_messages`
+
+Stores chat messages for each game
+
+```sql
+game_chat_messages:
+  - id (uuid, primary key)
+  - game_id (uuid, FK to game_events.id, ON DELETE CASCADE)
+  - sender_id (uuid, FK to profiles.id, ON DELETE CASCADE)
+  - message (text, NOT NULL)
+  - created_at (timestamp)
+```
+
+**Purpose:**
+- Real-time chat between game participants
+- Visible only to joined players
+- Automatically deleted when game is deleted
+
+**RLS Policies:**
+- SELECT: Only participants of the game can view
+- INSERT: Only participants can send messages
+- UPDATE/DELETE: Not allowed (immutable messages)
 
 ---
 
@@ -497,9 +583,14 @@ These tables remain in the schema for future competitive features:
 - Real-time subscriptions
 - Skill filtering
 
-#### Day 11: Leagues Placeholder
-- "Coming Soon" screen
-- UI polish
+#### Day 11: My Games Detail Page & Features
+- Individual game detail page accessible from My Games
+- Game info display (sport, time, players, skill level)
+- Player list with usernames
+- Share game functionality (deep link/text for non-app users)
+- Leave game button (moved from My Games list to detail page)
+- End game button with 5-second confirmation dialogue (any participant)
+- Real-time plain text chat using Supabase (visible to all game participants)
 
 #### Days 12-14: Testing & Refinement
 - End-to-end testing
@@ -522,6 +613,12 @@ These tables remain in the schema for future competitive features:
 - [ ] Join game from dashboard works
 - [ ] Real-time updates show player joins/leaves
 - [ ] Profile allows username and skill changes
+- [ ] Game detail page accessible from My Games
+- [ ] Player list updates in real-time
+- [ ] Share game functionality works on iOS/Android
+- [ ] End game confirmation dialogue prevents accidental endings
+- [ ] Chat messages send and receive in real-time
+- [ ] Chat only visible to game participants
 - [ ] No critical bugs or crashes
 
 ---
@@ -560,6 +657,7 @@ Preserved from original PRD (see `.tmp/PRD_V1.md`):
 - `src/screens/DashboardScreen.tsx` - Main hub
 - `src/screens/PostGameScreen.tsx` - Multi-step form
 - `src/screens/MyGamesScreen.tsx` - User's games
+- `src/screens/GameDetailScreen.tsx` - Individual game detail page
 - `src/screens/ProfileScreen.tsx` - Updated profile
 
 ### Components (New)
@@ -569,6 +667,9 @@ Preserved from original PRD (see `.tmp/PRD_V1.md`):
 - `src/components/PlayerCountSlider.tsx` - Min/max slider
 - `src/components/SkillLevelRangeSlider.tsx` - Skill range
 - `src/components/TimeSelector.tsx` - Time selection modes
+- `src/components/GameChat.tsx` - Real-time chat component
+- `src/components/PlayerList.tsx` - Game participants list
+- `src/components/ShareGame.tsx` - Share functionality
 
 ### Services
 - `src/services/auth.ts` - Username auth functions
@@ -577,6 +678,8 @@ Preserved from original PRD (see `.tmp/PRD_V1.md`):
 ### Hooks
 - `src/hooks/useGameEvents.ts` - Game data + subscriptions
 - `src/hooks/useMyGames.ts` - User's games
+- `src/hooks/useGameChat.ts` - Chat messages + subscriptions
+- `src/hooks/useGameParticipants.ts` - Participant list + subscriptions
 
 ---
 

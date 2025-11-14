@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,24 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
-import { getActiveGames, joinGame, leaveGame, hasJoinedGame } from '../services/games';
-import { getCurrentUser, getProfile } from '../services/auth';
+import { 
+  getActiveGames, 
+  joinGame, 
+  leaveGame, 
+  hasJoinedGame,
+  subscribeToGameUpdates,
+  unsubscribeFromGameUpdates,
+} from '../services/games';
+import { getCurrentUser, getProfile, getSkillLevels } from '../services/auth';
 import { getSports } from '../services/auth';
-import type { GameEventWithDetails, Sport, Profile } from '../types';
-import { SKILL_LEVEL_LABELS } from '../types';
+import type { GameEventWithDetails, Sport, Profile, PlayerSkillLevel, SkillLevel } from '../types';
+import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from '../types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 /**
  * DashboardScreen - Display active game events
@@ -30,9 +39,27 @@ export const DashboardScreen: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userSkills, setUserSkills] = useState<PlayerSkillLevel[]>([]);
+  const [enableSkillFiltering, setEnableSkillFiltering] = useState(false);
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     loadData();
+    
+    // Setup real-time subscriptions
+    const channel = subscribeToGameUpdates(() => {
+      console.log('Dashboard: Game update detected, reloading games...');
+      // Reload games when there are changes (INSERT, UPDATE, DELETE)
+      loadGames();
+    });
+    realtimeChannelRef.current = channel;
+
+    // Cleanup on unmount
+    return () => {
+      if (realtimeChannelRef.current) {
+        unsubscribeFromGameUpdates(realtimeChannelRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -47,14 +74,16 @@ export const DashboardScreen: React.FC = () => {
       const user = await getCurrentUser();
       
       if (user) {
-        const [profileData, sportsData] = await Promise.all([
+        const [profileData, sportsData, skillsData] = await Promise.all([
           getProfile(user.id),
           getSports(),
+          getSkillLevels(user.id),
         ]);
         
         setCurrentUserId(user.id);
         setProfile(profileData);
         setSports(sportsData);
+        setUserSkills(skillsData);
         
         await loadGames();
       } else {
@@ -169,9 +198,43 @@ export const DashboardScreen: React.FC = () => {
     });
   };
 
-  const filteredGames = selectedSport
-    ? games.filter(game => game.sport_id === selectedSport)
-    : games;
+  // Check if user's skill level matches game requirements
+  const isGameSkillMatch = (game: GameEventWithDetails): boolean => {
+    if (!game.skill_level_min && !game.skill_level_max) {
+      // No skill requirements - always match
+      return true;
+    }
+
+    // Find user's skill for this sport
+    const userSkillForSport = userSkills.find(s => s.sport_id === game.sport_id);
+    if (!userSkillForSport) {
+      // User hasn't evaluated this sport - don't filter out
+      return true;
+    }
+
+    const userSkillIndex = SKILL_LEVELS.indexOf(userSkillForSport.skill_level);
+    const minSkillIndex = game.skill_level_min ? SKILL_LEVELS.indexOf(game.skill_level_min) : 0;
+    const maxSkillIndex = game.skill_level_max ? SKILL_LEVELS.indexOf(game.skill_level_max) : SKILL_LEVELS.length - 1;
+
+    return userSkillIndex >= minSkillIndex && userSkillIndex <= maxSkillIndex;
+  };
+
+  // Apply filters
+  let filteredGames = games;
+
+  // Filter by sport
+  if (selectedSport) {
+    filteredGames = filteredGames.filter(game => game.sport_id === selectedSport);
+  }
+
+  // Filter by skill level if enabled
+  if (enableSkillFiltering && currentUserId) {
+    filteredGames = filteredGames.filter(game => isGameSkillMatch(game));
+  }
+
+  // Count of filtered games
+  const totalGamesCount = games.length;
+  const displayedGamesCount = filteredGames.length;
 
   const getUserInitial = () => {
     if (profile?.username) {
@@ -266,6 +329,35 @@ export const DashboardScreen: React.FC = () => {
           </ScrollView>
         </View>
 
+        {/* Skill Filtering Toggle */}
+        {currentUserId && userSkills.length > 0 && (
+          <View style={styles.skillFilterSection}>
+            <View style={styles.skillFilterHeader}>
+              <View style={styles.skillFilterTitleContainer}>
+                <Text style={styles.skillFilterTitle}>📊 Match My Skill Level</Text>
+                <Text style={styles.skillFilterSubtitle}>
+                  {enableSkillFiltering 
+                    ? `Showing ${displayedGamesCount} of ${totalGamesCount} games`
+                    : 'Show games matching your skill levels'}
+                </Text>
+              </View>
+              <Switch
+                value={enableSkillFiltering}
+                onValueChange={setEnableSkillFiltering}
+                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                thumbColor={enableSkillFiltering ? Colors.primary : Colors.backgroundTertiary}
+              />
+            </View>
+            {enableSkillFiltering && displayedGamesCount < totalGamesCount && (
+              <View style={styles.skillFilterInfo}>
+                <Text style={styles.skillFilterInfoText}>
+                  ℹ️ {totalGamesCount - displayedGamesCount} game{totalGamesCount - displayedGamesCount !== 1 ? 's' : ''} hidden due to skill level mismatch
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Post Game Button */}
         <View style={styles.postButtonSection}>
           <TouchableOpacity 
@@ -298,6 +390,8 @@ export const DashboardScreen: React.FC = () => {
                 onJoin={handleJoinGame}
                 onLeave={handleLeaveGame}
                 formatTime={formatTime}
+                isSkillMatch={isGameSkillMatch(game)}
+                userSkills={userSkills}
               />
             ))
           )}
@@ -313,15 +407,35 @@ interface GameCardProps {
   onJoin: (gameId: string) => void;
   onLeave: (gameId: string) => void;
   formatTime: (dateString: string, timeType: string) => string;
+  isSkillMatch: boolean;
+  userSkills: PlayerSkillLevel[];
 }
 
-const GameCard: React.FC<GameCardProps> = ({ game, onJoin, onLeave, formatTime }) => {
+const GameCard: React.FC<GameCardProps> = ({ 
+  game, 
+  onJoin, 
+  onLeave, 
+  formatTime, 
+  isSkillMatch,
+  userSkills 
+}) => {
   const isFull = (game.current_players ?? 0) >= game.max_players;
   const isConfirmed = game.status === 'confirmed';
   const timeString = formatTime(game.scheduled_time, game.time_type);
+  
+  // Get user's skill for this sport
+  const userSkillForSport = userSkills.find(s => s.sport_id === game.sport_id);
+  const hasSkillRequirements = game.skill_level_min || game.skill_level_max;
 
   return (
-    <Card style={styles.gameCard}>
+    <Card style={[styles.gameCard, isSkillMatch && hasSkillRequirements && styles.gameCardSkillMatch]}>
+      {/* Skill Match Badge */}
+      {isSkillMatch && hasSkillRequirements && userSkillForSport && (
+        <View style={styles.skillMatchBadge}>
+          <Text style={styles.skillMatchBadgeText}>✨ Perfect Match for Your Level</Text>
+        </View>
+      )}
+
       {/* Header */}
       <View style={styles.gameHeader}>
         <View style={styles.gameTitleRow}>
@@ -582,6 +696,63 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.error,
+  },
+  // Skill Filtering Section
+  skillFilterSection: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  skillFilterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  skillFilterTitleContainer: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  skillFilterTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  skillFilterSubtitle: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+  },
+  skillFilterInfo: {
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.backgroundSecondary,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+  },
+  skillFilterInfoText: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+  },
+  // Skill Match Badge
+  skillMatchBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopLeftRadius: BorderRadius.lg,
+    borderTopRightRadius: BorderRadius.lg,
+    marginBottom: Spacing.sm,
+  },
+  skillMatchBadgeText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.primaryDark,
+    textAlign: 'center',
+  },
+  gameCardSkillMatch: {
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    ...Shadows.medium,
   },
 });
 

@@ -8,6 +8,7 @@ import { DashboardScreen } from './DashboardScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
 import ProfileScreen from './ProfileScreen';
 import { PostGameScreen } from './PostGameScreen';
+import { GameDetailScreen } from './GameDetailScreen';
 import { Colors, Typography } from '../theme';
 
 const Tab = createBottomTabNavigator();
@@ -71,7 +72,7 @@ const MainTabs: React.FC = () => {
 
 /**
  * HomeScreen - Main navigation container with Stack Navigator
- * Wraps tabs and includes Profile and PostGame screens outside of tabs
+ * Wraps tabs and includes Profile, PostGame, and GameDetail screens outside of tabs
  */
 export const HomeScreen: React.FC = () => {
   return (
@@ -83,6 +84,7 @@ export const HomeScreen: React.FC = () => {
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="PostGame" component={PostGameScreen} />
+      <Stack.Screen name="GameDetail" component={GameDetailScreen} />
     </Stack.Navigator>
   );
 };

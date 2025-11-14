@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, Alert, BackHandler } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, Alert, BackHandler, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { SportSelector, PlayersAndSkillStep, TimeSelector, Button } from '../components';
 import { Colors, Spacing, Typography } from '../theme';
-import { getSports } from '../services/games';
-import type { Sport, SkillLevel, TimeType, TimeOfDayOption } from '../types';
-import { SKILL_LEVELS } from '../types';
+import { getSports, createGameEvent, getUserGameHistory } from '../services/games';
+import { getCurrentUser } from '../services/auth';
+import type { Sport, SkillLevel, TimeType, TimeOfDayOption, GameEventWithDetails } from '../types';
+import { SKILL_LEVELS, TIME_OF_DAY_OPTIONS, SKILL_LEVEL_LABELS } from '../types';
 
 /**
  * PostGameScreen
@@ -22,6 +23,15 @@ export const PostGameScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [sports, setSports] = useState<Sport[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // User state
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // History state
+  const [gameHistory, setGameHistory] = useState<GameEventWithDetails[]>([]);
+  const [historyExpanded, setHistoryExpanded] = useState<boolean>(false);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
 
   // Form data state - Step 1
   const [selectedSportId, setSelectedSportId] = useState<number | null>(null);
@@ -29,6 +39,7 @@ export const PostGameScreen: React.FC = () => {
   // Form data state - Step 2
   const [minPlayers, setMinPlayers] = useState<number>(2);
   const [maxPlayers, setMaxPlayers] = useState<number>(10);
+  const [skillRestrictionEnabled, setSkillRestrictionEnabled] = useState<boolean>(false);
   const [minSkillLevel, setMinSkillLevel] = useState<SkillLevel>(SKILL_LEVELS[0]);
   const [maxSkillLevel, setMaxSkillLevel] = useState<SkillLevel>(SKILL_LEVELS[4]);
   
@@ -37,9 +48,9 @@ export const PostGameScreen: React.FC = () => {
   const [selectedTime, setSelectedTime] = useState<Date | null>(new Date());
   const [timeOfDayOption, setTimeOfDayOption] = useState<TimeOfDayOption | null>(null);
 
-  // Load sports data
+  // Load initial data
   useEffect(() => {
-    loadSports();
+    loadInitialData();
   }, []);
 
   // Android back button handler
@@ -56,16 +67,44 @@ export const PostGameScreen: React.FC = () => {
     return () => backHandler.remove();
   }, [currentStep]);
 
-  const loadSports = async () => {
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const data = await getSports();
-      setSports(data);
+      
+      // Load user
+      const user = await getCurrentUser();
+      if (user) {
+        setUserId(user.id);
+      } else {
+        Alert.alert('Error', 'You must be logged in to post a game.');
+        navigation.goBack();
+        return;
+      }
+
+      // Load sports
+      const sportsData = await getSports();
+      setSports(sportsData);
     } catch (error) {
-      console.error('Error loading sports:', error);
-      Alert.alert('Error', 'Failed to load sports. Please try again.');
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'Failed to load data. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    if (!userId) return;
+    
+    try {
+      setHistoryLoading(true);
+      const history = await getUserGameHistory(userId, 5);
+      setGameHistory(history);
+      setHistoryExpanded(true);
+    } catch (error) {
+      console.error('Error loading history:', error);
+      Alert.alert('Error', 'Failed to load previous posts.');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -121,17 +160,160 @@ export const PostGameScreen: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
-    // TODO: Day 8 - Implement actual game posting
+  const handleSubmit = async () => {
+    if (!userId || !selectedSportId || !selectedTime) {
+      Alert.alert('Error', 'Please complete all required fields.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Prepare game event data
+      const gameData = {
+        sport_id: selectedSportId,
+        creator_id: userId,
+        min_players: minPlayers,
+        max_players: maxPlayers,
+        skill_level_min: skillRestrictionEnabled ? minSkillLevel : null,
+        skill_level_max: skillRestrictionEnabled ? maxSkillLevel : null,
+        scheduled_time: selectedTime,
+        time_type: timeType,
+        time_label: timeOfDayOption ? TIME_OF_DAY_OPTIONS[timeOfDayOption].label : null,
+      };
+
+      // Create game event (also auto-joins creator)
+      const gameId = await createGameEvent(gameData);
+
+      console.log('Game created successfully:', gameId);
+
+      Alert.alert(
+        'Success!',
+        'Your game has been posted and you\'ve been added as the first participant.',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error posting game:', error);
+      Alert.alert(
+        'Error',
+        'Failed to post game. Please try again.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePrefillFromHistory = (game: GameEventWithDetails) => {
+    // Prefill form with data from previous game
+    setSelectedSportId(game.sport_id);
+    setMinPlayers(game.min_players);
+    setMaxPlayers(game.max_players);
+    setSkillRestrictionEnabled(game.skill_level_min !== null && game.skill_level_max !== null);
+    setMinSkillLevel(game.skill_level_min || SKILL_LEVELS[0]);
+    setMaxSkillLevel(game.skill_level_max || SKILL_LEVELS[4]);
+    setTimeType(game.time_type);
+    
+    // Don't copy the exact time, but keep the time type
+    if (game.time_type === 'now') {
+      setSelectedTime(new Date());
+    } else if (game.time_type === 'time_of_day' && game.time_label) {
+      // Find matching time of day option
+      const option = Object.entries(TIME_OF_DAY_OPTIONS).find(
+        ([_, value]) => value.label === game.time_label
+      )?.[0] as TimeOfDayOption | undefined;
+      
+      if (option) {
+        setTimeOfDayOption(option);
+        const now = new Date();
+        const optionData = TIME_OF_DAY_OPTIONS[option];
+        const scheduledTime = new Date(now);
+        scheduledTime.setHours(optionData.hour, 0, 0, 0);
+        
+        // If the time has passed today, schedule for tomorrow
+        if (scheduledTime <= now) {
+          scheduledTime.setDate(scheduledTime.getDate() + 1);
+        }
+        
+        setSelectedTime(scheduledTime);
+      }
+    }
+
+    // Go to step 1 to review
+    setCurrentStep(1);
+    setHistoryExpanded(false);
+
     Alert.alert(
-      'Coming Soon',
-      'Game posting functionality will be implemented in Day 8!\n\n' +
-      'Your selections:\n' +
-      `• Sport: ${sports.find(s => s.id === selectedSportId)?.name}\n` +
-      `• Players: ${minPlayers}-${maxPlayers}\n` +
-      `• Skill: ${minSkillLevel} to ${maxSkillLevel}\n` +
-      `• Time: ${timeType}`,
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
+      'Pre-filled',
+      `Form has been filled with data from your previous ${game.sport?.name} game.`
+    );
+  };
+
+  // Render history section
+  const renderHistory = () => {
+    if (currentStep !== 1 || loading) return null;
+
+    return (
+      <View style={styles.historyContainer}>
+        <TouchableOpacity
+          style={styles.historyHeader}
+          onPress={() => {
+            if (historyExpanded) {
+              setHistoryExpanded(false);
+            } else {
+              if (gameHistory.length === 0) {
+                loadHistory();
+              } else {
+                setHistoryExpanded(true);
+              }
+            }
+          }}
+        >
+          <Text style={styles.historyTitle}>
+            {historyExpanded ? '▼' : '▶'} Previous Posts
+          </Text>
+          <Text style={styles.historySubtitle}>
+            Tap to {historyExpanded ? 'hide' : 'view'} and quick-post
+          </Text>
+        </TouchableOpacity>
+
+        {historyExpanded && (
+          <View style={styles.historyContent}>
+            {historyLoading ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={styles.historyLoader} />
+            ) : gameHistory.length === 0 ? (
+              <Text style={styles.historyEmpty}>No previous posts found.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScroll}>
+                {gameHistory.map((game) => (
+                  <TouchableOpacity
+                    key={game.id}
+                    style={styles.historyCard}
+                    onPress={() => handlePrefillFromHistory(game)}
+                  >
+                    <Text style={styles.historyCardSport}>{game.sport?.name}</Text>
+                    <Text style={styles.historyCardDetail}>
+                      {game.min_players}-{game.max_players} players
+                    </Text>
+                    {game.skill_level_min && game.skill_level_max && (
+                      <Text style={styles.historyCardDetail}>
+                        {SKILL_LEVEL_LABELS[game.skill_level_min]} - {SKILL_LEVEL_LABELS[game.skill_level_max]}
+                      </Text>
+                    )}
+                    <Text style={styles.historyCardTime}>
+                      {game.time_type === 'now' ? 'Now' : game.time_label || game.time_type}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -222,8 +404,10 @@ export const PostGameScreen: React.FC = () => {
             maxPlayers={maxPlayers}
             onMinPlayersChange={setMinPlayers}
             onMaxPlayersChange={setMaxPlayers}
+            skillRestrictionEnabled={skillRestrictionEnabled}
             minSkillLevel={minSkillLevel}
             maxSkillLevel={maxSkillLevel}
+            onSkillRestrictionChange={setSkillRestrictionEnabled}
             onMinSkillLevelChange={setMinSkillLevel}
             onMaxSkillLevelChange={setMaxSkillLevel}
             absoluteMinPlayers={2}
@@ -261,6 +445,9 @@ export const PostGameScreen: React.FC = () => {
 
       {renderStepIndicator()}
 
+      {/* History section - only on step 1 */}
+      {renderHistory()}
+
       {/* Step content */}
       <View style={styles.content}>{renderStepContent()}</View>
 
@@ -272,11 +459,13 @@ export const PostGameScreen: React.FC = () => {
             onPress={handleBack}
             variant="outline"
             style={styles.footerButton}
+            disabled={submitting}
           />
           <Button
-            title={currentStep === 3 ? 'Post Game' : 'Next'}
+            title={currentStep === 3 ? (submitting ? 'Posting...' : 'Post Game') : 'Next'}
             onPress={handleNext}
             style={styles.footerButton}
+            disabled={submitting}
           />
         </View>
       )}
@@ -402,5 +591,64 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  historyContainer: {
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  historyHeader: {
+    padding: Spacing.md,
+  },
+  historyTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  historySubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+  },
+  historyContent: {
+    paddingBottom: Spacing.md,
+  },
+  historyLoader: {
+    paddingVertical: Spacing.lg,
+  },
+  historyEmpty: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  historyScroll: {
+    paddingLeft: Spacing.md,
+  },
+  historyCard: {
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 8,
+    padding: Spacing.md,
+    marginRight: Spacing.sm,
+    width: 150,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  historyCardSport: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  historyCardDetail: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  historyCardTime: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.semibold,
+    marginTop: Spacing.xs,
   },
 });

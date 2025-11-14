@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
-import { getUserGames, leaveGame } from '../services/games';
+import { getUserGames, subscribeToGameUpdates, unsubscribeFromGameUpdates } from '../services/games';
 import { getCurrentUser, getProfile } from '../services/auth';
 import type { GameEventWithDetails, Profile } from '../types';
 import { SKILL_LEVEL_LABELS } from '../types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 /**
  * MyGamesScreen - Display games the user has joined
@@ -26,10 +27,33 @@ export const MyGamesScreen: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     loadData();
+    
+    // Cleanup subscription on unmount
+    return () => {
+      if (realtimeChannelRef.current) {
+        unsubscribeFromGameUpdates(realtimeChannelRef.current);
+      }
+    };
   }, []);
+
+  // Setup real-time subscriptions after initial load
+  useEffect(() => {
+    if (currentUserId) {
+      setupRealtimeSubscriptions();
+    }
+  }, [currentUserId]);
+
+  const setupRealtimeSubscriptions = () => {
+    // Subscribe to game updates (status changes, new games, etc.)
+    realtimeChannelRef.current = subscribeToGameUpdates(() => {
+      console.log('Game update detected in My Games');
+      loadData();
+    });
+  };
 
   const loadData = async () => {
     try {
@@ -44,7 +68,23 @@ export const MyGamesScreen: React.FC = () => {
         
         setCurrentUserId(user.id);
         setProfile(profileData);
-        setGames(gamesData);
+        
+        // Sort games: confirmed first, then by closest time
+        const sortedGames = gamesData.sort((a, b) => {
+          // First sort by status (confirmed games first)
+          const aIsConfirmed = a.status === 'confirmed';
+          const bIsConfirmed = b.status === 'confirmed';
+          
+          if (aIsConfirmed && !bIsConfirmed) return -1;
+          if (!aIsConfirmed && bIsConfirmed) return 1;
+          
+          // If same status, sort by time (closest first)
+          const aTime = new Date(a.scheduled_time).getTime();
+          const bTime = new Date(b.scheduled_time).getTime();
+          return aTime - bTime;
+        });
+        
+        setGames(sortedGames);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -64,30 +104,8 @@ export const MyGamesScreen: React.FC = () => {
     navigation.navigate('Profile' as never);
   };
 
-  const handleLeaveGame = async (gameId: string) => {
-    if (!currentUserId) return;
-
-    Alert.alert(
-      'Leave Game',
-      'Are you sure you want to leave this game?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveGame(gameId, currentUserId);
-              Alert.alert('Success', 'You have left the game');
-              await loadData();
-            } catch (error) {
-              console.error('Error leaving game:', error);
-              Alert.alert('Error', 'Failed to leave game');
-            }
-          },
-        },
-      ]
-    );
+  const handleGamePress = (gameId: string) => {
+    navigation.navigate('GameDetail' as never, { gameId } as never);
   };
 
   const formatTime = (dateString: string, timeType: string) => {
@@ -184,7 +202,7 @@ export const MyGamesScreen: React.FC = () => {
               <GameCard
                 key={game.id}
                 game={game}
-                onLeave={handleLeaveGame}
+                onPress={handleGamePress}
                 formatTime={formatTime}
               />
             ))
@@ -198,67 +216,70 @@ export const MyGamesScreen: React.FC = () => {
 // Game Card Component
 interface GameCardProps {
   game: GameEventWithDetails;
-  onLeave: (gameId: string) => void;
+  onPress: (gameId: string) => void;
   formatTime: (dateString: string, timeType: string) => string;
 }
 
-const GameCard: React.FC<GameCardProps> = ({ game, onLeave, formatTime }) => {
+const GameCard: React.FC<GameCardProps> = ({ game, onPress, formatTime }) => {
   const isConfirmed = game.status === 'confirmed';
   const timeString = formatTime(game.scheduled_time, game.time_type);
 
   return (
-    <Card style={styles.gameCard}>
-      {/* Header */}
-      <View style={styles.gameHeader}>
-        <View style={styles.gameTitleRow}>
-          <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
-          <View>
-            <Text style={styles.gameSportName}>{game.sport?.name || 'Sport'}</Text>
-            <Text style={styles.gameCreator}>
-              by {game.creator?.username || game.creator?.discord_username || 'Unknown'}
+    <TouchableOpacity
+      style={styles.gameCardTouchable}
+      onPress={() => onPress(game.id)}
+      activeOpacity={0.7}
+    >
+      <Card style={styles.gameCard}>
+        {/* Header */}
+        <View style={styles.gameHeader}>
+          <View style={styles.gameTitleRow}>
+            <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
+            <View>
+              <Text style={styles.gameSportName}>{game.sport?.name || 'Sport'}</Text>
+              <Text style={styles.gameCreator}>
+                by {game.creator?.username || game.creator?.discord_username || 'Unknown'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.statusBadge, isConfirmed && styles.statusBadgeConfirmed]}>
+            <Text style={styles.statusBadgeText}>
+              {isConfirmed ? '✓ Confirmed' : '⏳ Waiting'}
             </Text>
           </View>
         </View>
-        <View style={[styles.statusBadge, isConfirmed && styles.statusBadgeConfirmed]}>
-          <Text style={styles.statusBadgeText}>
-            {isConfirmed ? '✓ Confirmed' : '⏳ Waiting'}
-          </Text>
-        </View>
-      </View>
 
-      {/* Details */}
-      <View style={styles.gameDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>⏰</Text>
-          <Text style={styles.detailText}>{timeString}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>👥</Text>
-          <Text style={styles.detailText}>
-            {game.current_players}/{game.max_players} players
-            {game.min_players > 0 && ` (min ${game.min_players})`}
-          </Text>
-        </View>
-        {(game.skill_level_min || game.skill_level_max) && (
+        {/* Details */}
+        <View style={styles.gameDetails}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>📊</Text>
+            <Text style={styles.detailIcon}>⏰</Text>
+            <Text style={styles.detailText}>{timeString}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailIcon}>👥</Text>
             <Text style={styles.detailText}>
-              Skill: {game.skill_level_min && SKILL_LEVEL_LABELS[game.skill_level_min]}
-              {game.skill_level_min && game.skill_level_max && ' - '}
-              {game.skill_level_max && SKILL_LEVEL_LABELS[game.skill_level_max]}
+              {game.current_players}/{game.max_players} players
+              {game.min_players > 0 && ` (min ${game.min_players})`}
             </Text>
           </View>
-        )}
-      </View>
+          {(game.skill_level_min || game.skill_level_max) && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>📊</Text>
+              <Text style={styles.detailText}>
+                Skill: {game.skill_level_min && SKILL_LEVEL_LABELS[game.skill_level_min]}
+                {game.skill_level_min && game.skill_level_max && ' - '}
+                {game.skill_level_max && SKILL_LEVEL_LABELS[game.skill_level_max]}
+              </Text>
+            </View>
+          )}
+        </View>
 
-      {/* Action Button */}
-      <TouchableOpacity
-        style={[styles.gameButton, styles.gameButtonLeave]}
-        onPress={() => onLeave(game.id)}
-      >
-        <Text style={styles.gameButtonTextLeave}>Leave Game</Text>
-      </TouchableOpacity>
-    </Card>
+        {/* Tap Hint */}
+        <View style={styles.tapHint}>
+          <Text style={styles.tapHintText}>Tap for details →</Text>
+        </View>
+      </Card>
+    </TouchableOpacity>
   );
 };
 
@@ -302,8 +323,11 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   // Game Card
-  gameCard: {
+  gameCardTouchable: {
     marginBottom: Spacing.md,
+  },
+  gameCard: {
+    marginBottom: 0,
   },
   gameHeader: {
     flexDirection: 'row',
@@ -362,22 +386,17 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     flex: 1,
   },
-  gameButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+  tapHint: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.backgroundTertiary,
     alignItems: 'center',
-    ...Shadows.small,
   },
-  gameButtonLeave: {
-    backgroundColor: Colors.backgroundTertiary,
-    borderWidth: 1,
-    borderColor: Colors.error,
-  },
-  gameButtonTextLeave: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.error,
+  tapHintText: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
 
