@@ -13,7 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { getCurrentUser, getProfile, signOut, updateUsername, getSkillLevels, saveSkillLevels, getSports } from '../services/auth';
+import { getUserStats, type UserStats } from '../services/games';
 import type { Profile, Sport, SkillLevel, PlayerSkillLevel } from '../types';
 import { SKILL_LEVEL_LABELS, SKILL_LEVEL_DESCRIPTIONS, SKILL_LEVELS } from '../types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
@@ -23,6 +26,7 @@ import { Button } from '../components';
  * ProfileScreen - Display user profile and logout
  */
 export default function ProfileScreen() {
+  const navigation = useNavigation<NavigationProp<any>>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -38,6 +42,14 @@ export default function ProfileScreen() {
   const [skillSelections, setSkillSelections] = useState<Record<number, SkillLevel | null>>({});
   const [currentSkills, setCurrentSkills] = useState<PlayerSkillLevel[]>([]);
   const [isUpdatingSkills, setIsUpdatingSkills] = useState(false);
+
+  // User statistics
+  const [userStats, setUserStats] = useState<UserStats>({
+    totalGames: 0,
+    completedGames: 0,
+    activeGames: 0,
+    gamesCreated: 0,
+  });
 
   useEffect(() => {
     loadProfile();
@@ -59,16 +71,18 @@ export default function ProfileScreen() {
         } else {
           setProfile(profileData);
           
-          // Load user's skills and sports
+          // Load user's skills, sports, and stats in parallel
           try {
-            const [skillsData, sportsData] = await Promise.all([
+            const [skillsData, sportsData, stats] = await Promise.all([
               getSkillLevels(user.id),
               getSports(),
+              getUserStats(user.id),
             ]);
             setCurrentSkills(skillsData);
             setSports(sportsData);
+            setUserStats(stats);
           } catch (error) {
-            console.error('Error loading skills:', error);
+            console.error('Error loading profile data:', error);
           }
         }
       }
@@ -240,7 +254,14 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Back Button */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+      </View>
+      
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
@@ -252,13 +273,15 @@ export default function ProfileScreen() {
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
               <Text style={styles.avatarPlaceholderText}>
-                {profile.discord_username?.charAt(0).toUpperCase() || '?'}
+                {(profile.username || profile.discord_username)?.charAt(0).toUpperCase() || '?'}
               </Text>
             </View>
           )}
         </View>
-        <Text style={styles.username}>{profile.discord_username}</Text>
-        <Text style={styles.userId}>ID: {profile.discord_id}</Text>
+        <Text style={styles.username}>{profile.username || profile.discord_username}</Text>
+        {profile.discord_username && profile.username && (
+          <Text style={styles.userId}>@{profile.discord_username}</Text>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -283,51 +306,56 @@ export default function ProfileScreen() {
             size="small"
             style={styles.actionButton}
           />
-          <Button
-            title="Re-evaluate Skills"
-            onPress={handleReEvaluateSkills}
-            variant="outline"
-            size="small"
-            style={styles.actionButton}
-          />
         </View>
       </View>
 
-      {/* Skills Summary */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Your Skills ({currentSkills.length} sports)</Text>
-        {currentSkills.length > 0 ? (
-          <View style={styles.skillsGrid}>
-            {currentSkills.slice(0, 6).map((skill) => {
-              const sport = sports.find(s => s.id === skill.sport_id);
-              return (
-                <View key={skill.id} style={styles.skillChip}>
-                  <Text style={styles.skillChipText}>
-                    {sport?.icon || '🏃'} {SKILL_LEVEL_LABELS[skill.skill_level]}
-                  </Text>
-                </View>
-              );
-            })}
-            {currentSkills.length > 6 && (
-              <TouchableOpacity onPress={handleReEvaluateSkills} style={styles.skillChip}>
-                <Text style={styles.skillChipText}>+{currentSkills.length - 6} more</Text>
-              </TouchableOpacity>
-            )}
+      {/* Re-evaluate Skills - More Prominent */}
+      <TouchableOpacity 
+        style={styles.skillsCalloutCard}
+        onPress={handleReEvaluateSkills}
+        activeOpacity={0.7}
+      >
+        <View style={styles.skillsCalloutHeader}>
+          <Text style={styles.skillsCalloutIcon}>⚡</Text>
+          <View style={styles.skillsCalloutContent}>
+            <Text style={styles.skillsCalloutTitle}>Update Your Skills</Text>
+            <Text style={styles.skillsCalloutSubtitle}>
+              {currentSkills.length > 0 
+                ? `You have ${currentSkills.length} sport${currentSkills.length !== 1 ? 's' : ''} evaluated. Tap to update.`
+                : 'Evaluate your skills to find better game matches!'}
+            </Text>
           </View>
-        ) : (
-          <Text style={styles.noSkillsText}>
-            No skills evaluated yet. Tap "Re-evaluate Skills" to get started!
-          </Text>
-        )}
-      </View>
+          <Text style={styles.skillsCalloutArrow}>→</Text>
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Statistics</Text>
         <View style={styles.statsGrid}>
-          <StatCard title="Sports Played" value={currentSkills.length.toString()} icon="🏀" />
-          <StatCard title="Total Games" value="0" icon="🎮" />
-          <StatCard title="Win Rate" value="0%" icon="🏆" />
-          <StatCard title="Challenges" value="0" icon="⚔️" />
+          <StatCard 
+            title="Games Played" 
+            value={userStats.totalGames.toString()} 
+            icon="⚽"
+            subtitle={`${userStats.completedGames} completed`}
+          />
+          <StatCard 
+            title="Active Games" 
+            value={userStats.activeGames.toString()} 
+            icon="🏃"
+            subtitle="Currently playing"
+          />
+          <StatCard 
+            title="Games Created" 
+            value={userStats.gamesCreated.toString()} 
+            icon="⚡"
+            subtitle="You organized"
+          />
+          <StatCard 
+            title="Sports" 
+            value={currentSkills.length.toString()} 
+            icon="🏀"
+            subtitle="Skills evaluated"
+          />
         </View>
       </View>
 
@@ -474,14 +502,16 @@ interface StatCardProps {
   title: string;
   value: string;
   icon: string;
+  subtitle?: string;
 }
 
-function StatCard({ title, value, icon }: StatCardProps) {
+function StatCard({ title, value, icon, subtitle }: StatCardProps) {
   return (
     <View style={styles.statCard}>
       <Text style={styles.statIcon}>{icon}</Text>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statTitle}>{title}</Text>
+      {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
     </View>
   );
 }
@@ -557,6 +587,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  topBar: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  backButton: {
+    paddingVertical: Spacing.xs,
+  },
+  backButtonText: {
+    fontSize: Typography.fontSize.md,
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.semibold,
+  },
   scrollView: {
     flex: 1,
   },
@@ -569,17 +614,21 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.primary,
     paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xxl,
     alignItems: 'center',
+    borderBottomLeftRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
+    ...Shadows.medium,
   },
   avatarContainer: {
     marginBottom: Spacing.md,
+    ...Shadows.large,
   },
   avatar: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     borderRadius: BorderRadius.full,
-    borderWidth: 4,
+    borderWidth: 5,
     borderColor: Colors.textInverse,
   },
   avatarPlaceholder: {
@@ -588,35 +637,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarPlaceholderText: {
-    fontSize: Typography.fontSize.huge,
+    fontSize: Typography.fontSize.huge * 1.2,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
   },
   username: {
-    fontSize: Typography.fontSize.xxl,
+    fontSize: Typography.fontSize.xxl * 1.1,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
     marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   userId: {
     fontSize: Typography.fontSize.sm,
     color: Colors.textInverse,
-    opacity: 0.8,
+    opacity: 0.9,
+    fontWeight: Typography.fontWeight.medium,
   },
   section: {
     backgroundColor: Colors.surface,
     marginTop: Spacing.md,
+    marginHorizontal: Spacing.md,
     padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    ...Shadows.small,
   },
   sectionTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
+    fontSize: Typography.fontSize.lg * 1.05,
+    fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+    letterSpacing: 0.3,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
@@ -624,56 +680,72 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
+    fontWeight: Typography.fontWeight.medium,
   },
   infoValue: {
     fontSize: Typography.fontSize.md,
     color: Colors.text,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: Typography.fontWeight.semibold,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: Spacing.md,
+    marginTop: Spacing.xs,
   },
   statCard: {
     flex: 1,
     minWidth: '45%',
     backgroundColor: Colors.backgroundSecondary,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.small,
   },
   statIcon: {
-    fontSize: Typography.fontSize.xxxl,
-    marginBottom: Spacing.sm,
+    fontSize: Typography.fontSize.xxxl * 1.2,
+    marginBottom: Spacing.md,
   },
   statValue: {
-    fontSize: Typography.fontSize.xxl,
+    fontSize: Typography.fontSize.xxxl,
     fontWeight: Typography.fontWeight.bold,
-    color: Colors.text,
+    color: Colors.primary,
     marginBottom: Spacing.xs,
   },
   statTitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text,
+    textAlign: 'center',
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.xs,
+  },
+  statSubtitle: {
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
     textAlign: 'center',
+    fontStyle: 'italic',
   },
   settingButton: {
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   settingButtonText: {
     fontSize: Typography.fontSize.md,
     color: Colors.text,
+    fontWeight: Typography.fontWeight.medium,
   },
   signOutButton: {
     backgroundColor: Colors.error,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.small,
+    ...Shadows.medium,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -684,13 +756,15 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
   },
   footer: {
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
   footerText: {
     fontSize: Typography.fontSize.xs,
     color: Colors.textTertiary,
     marginVertical: 2,
+    fontWeight: Typography.fontWeight.medium,
   },
   errorText: {
     fontSize: Typography.fontSize.md,
@@ -735,17 +809,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   skillChip: {
     backgroundColor: Colors.primaryLight,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+    ...Shadows.small,
   },
   skillChipText: {
     fontSize: Typography.fontSize.sm,
     color: Colors.primaryDark,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: Typography.fontWeight.semibold,
   },
   noSkillsText: {
     fontSize: Typography.fontSize.md,
@@ -913,6 +991,43 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: Spacing.xs,
+  },
+  // Skills Callout Card
+  skillsCalloutCard: {
+    backgroundColor: Colors.primary,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    ...Shadows.large,
+  },
+  skillsCalloutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  skillsCalloutIcon: {
+    fontSize: 40,
+  },
+  skillsCalloutContent: {
+    flex: 1,
+  },
+  skillsCalloutTitle: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textInverse,
+    marginBottom: Spacing.xs,
+  },
+  skillsCalloutSubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textInverse,
+    opacity: 0.9,
+    lineHeight: Typography.fontSize.sm * Typography.lineHeight.relaxed,
+  },
+  skillsCalloutArrow: {
+    fontSize: Typography.fontSize.xxl,
+    color: Colors.textInverse,
+    fontWeight: Typography.fontWeight.bold,
   },
 });
 

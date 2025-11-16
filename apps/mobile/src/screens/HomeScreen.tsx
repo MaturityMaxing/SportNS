@@ -55,7 +55,7 @@ const MainTabs: React.FC = () => {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ color }) => <TabIcon icon="🎮" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon="⚽" color={color} />,
         }}
       />
       <Tab.Screen

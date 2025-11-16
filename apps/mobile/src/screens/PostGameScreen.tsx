@@ -44,8 +44,8 @@ export const PostGameScreen: React.FC = () => {
   const [maxSkillLevel, setMaxSkillLevel] = useState<SkillLevel>(SKILL_LEVELS[4]);
   
   // Form data state - Step 3
-  const [timeType, setTimeType] = useState<TimeType>('now');
-  const [selectedTime, setSelectedTime] = useState<Date | null>(new Date());
+  const [timeType, setTimeType] = useState<TimeType>('time_of_day');
+  const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [timeOfDayOption, setTimeOfDayOption] = useState<TimeOfDayOption | null>(null);
 
   // Load initial data
@@ -120,8 +120,14 @@ export const PostGameScreen: React.FC = () => {
   // Handle time type change
   const handleTimeTypeChange = (type: TimeType) => {
     setTimeType(type);
-    if (type === 'now') {
-      setSelectedTime(new Date());
+    // Reset time when changing type
+    if (type === 'time_of_day') {
+      setSelectedTime(null);
+      setTimeOfDayOption(null);
+    } else if (type === 'precise') {
+      // Set to 45 minutes from now as default
+      const minTime = new Date(Date.now() + 45 * 60 * 1000);
+      setSelectedTime(minTime);
       setTimeOfDayOption(null);
     }
   };
@@ -433,7 +439,7 @@ export const PostGameScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header with step indicator */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>

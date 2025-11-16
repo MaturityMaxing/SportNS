@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
@@ -34,13 +33,12 @@ export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
   const [games, setGames] = useState<GameEventWithDetails[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
-  const [selectedSport, setSelectedSport] = useState<number | null>(null);
+  const [selectedSports, setSelectedSports] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userSkills, setUserSkills] = useState<PlayerSkillLevel[]>([]);
-  const [enableSkillFiltering, setEnableSkillFiltering] = useState(false);
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -66,7 +64,7 @@ export const DashboardScreen: React.FC = () => {
     if (!isLoading) {
       loadGames();
     }
-  }, [selectedSport]);
+  }, [selectedSports]);
 
   const loadData = async () => {
     try {
@@ -108,7 +106,8 @@ export const DashboardScreen: React.FC = () => {
 
   const loadGames = async () => {
     try {
-      const gamesData = await getActiveGames(selectedSport || undefined);
+      // Load all games, we'll filter on frontend
+      const gamesData = await getActiveGames();
       
       // Check if user has joined each game
       if (currentUserId) {
@@ -124,6 +123,28 @@ export const DashboardScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading games:', error);
+    }
+  };
+
+  const handleSportToggle = (sportId: number) => {
+    setSelectedSports(prev => {
+      if (prev.includes(sportId)) {
+        // Remove if already selected
+        return prev.filter(id => id !== sportId);
+      } else {
+        // Add if not selected
+        return [...prev, sportId];
+      }
+    });
+  };
+
+  const handleAllSportsToggle = () => {
+    if (selectedSports.length === 0) {
+      // Already showing all, do nothing (or could select all)
+      return;
+    } else {
+      // Clear selection to show all
+      setSelectedSports([]);
     }
   };
 
@@ -222,19 +243,10 @@ export const DashboardScreen: React.FC = () => {
   // Apply filters
   let filteredGames = games;
 
-  // Filter by sport
-  if (selectedSport) {
-    filteredGames = filteredGames.filter(game => game.sport_id === selectedSport);
+  // Filter by sport (multiple selection)
+  if (selectedSports.length > 0) {
+    filteredGames = filteredGames.filter(game => selectedSports.includes(game.sport_id));
   }
-
-  // Filter by skill level if enabled
-  if (enableSkillFiltering && currentUserId) {
-    filteredGames = filteredGames.filter(game => isGameSkillMatch(game));
-  }
-
-  // Count of filtered games
-  const totalGamesCount = games.length;
-  const displayedGamesCount = filteredGames.length;
 
   const getUserInitial = () => {
     if (profile?.username) {
@@ -281,26 +293,21 @@ export const DashboardScreen: React.FC = () => {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Sport Filter */}
+        {/* Sport Filter - Multiple Selection */}
         <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Filter by Sport</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-            contentContainerStyle={styles.filterContent}
-          >
+          <Text style={styles.filterTitle}>Filter by Sport (select multiple)</Text>
+          <View style={styles.filterGrid}>
             <TouchableOpacity
               style={[
                 styles.filterChip,
-                selectedSport === null && styles.filterChipActive,
+                selectedSports.length === 0 && styles.filterChipActive,
               ]}
-              onPress={() => setSelectedSport(null)}
+              onPress={handleAllSportsToggle}
             >
               <Text
                 style={[
                   styles.filterChipText,
-                  selectedSport === null && styles.filterChipTextActive,
+                  selectedSports.length === 0 && styles.filterChipTextActive,
                 ]}
               >
                 All Sports
@@ -311,52 +318,23 @@ export const DashboardScreen: React.FC = () => {
                 key={sport.id}
                 style={[
                   styles.filterChip,
-                  selectedSport === sport.id && styles.filterChipActive,
+                  selectedSports.includes(sport.id) && styles.filterChipActive,
                 ]}
-                onPress={() => setSelectedSport(sport.id)}
+                onPress={() => handleSportToggle(sport.id)}
               >
                 <Text style={styles.filterChipIcon}>{sport.icon || '🏃'}</Text>
                 <Text
                   style={[
                     styles.filterChipText,
-                    selectedSport === sport.id && styles.filterChipTextActive,
+                    selectedSports.includes(sport.id) && styles.filterChipTextActive,
                   ]}
                 >
                   {sport.name}
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
-        </View>
-
-        {/* Skill Filtering Toggle */}
-        {currentUserId && userSkills.length > 0 && (
-          <View style={styles.skillFilterSection}>
-            <View style={styles.skillFilterHeader}>
-              <View style={styles.skillFilterTitleContainer}>
-                <Text style={styles.skillFilterTitle}>📊 Match My Skill Level</Text>
-                <Text style={styles.skillFilterSubtitle}>
-                  {enableSkillFiltering 
-                    ? `Showing ${displayedGamesCount} of ${totalGamesCount} games`
-                    : 'Show games matching your skill levels'}
-                </Text>
-              </View>
-              <Switch
-                value={enableSkillFiltering}
-                onValueChange={setEnableSkillFiltering}
-                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-                thumbColor={enableSkillFiltering ? Colors.primary : Colors.backgroundTertiary}
-              />
-            </View>
-            {enableSkillFiltering && displayedGamesCount < totalGamesCount && (
-              <View style={styles.skillFilterInfo}>
-                <Text style={styles.skillFilterInfoText}>
-                  ℹ️ {totalGamesCount - displayedGamesCount} game{totalGamesCount - displayedGamesCount !== 1 ? 's' : ''} hidden due to skill level mismatch
-                </Text>
-              </View>
-            )}
           </View>
-        )}
+        </View>
 
         {/* Post Game Button */}
         <View style={styles.postButtonSection}>
@@ -377,11 +355,11 @@ export const DashboardScreen: React.FC = () => {
         {/* Games List */}
         <View style={styles.gamesSection}>
           {filteredGames.length === 0 ? (
-            <EmptyState
-              icon="🎮"
-              title="No Games Available"
-              description="There are no active games at the moment. Check back soon or create your own!"
-            />
+          <EmptyState
+            icon="⚽"
+            title="No Games Available"
+            description="There are no active games at the moment. Check back soon or create your own!"
+          />
           ) : (
             filteredGames.map((game) => (
               <GameCard
@@ -419,6 +397,7 @@ const GameCard: React.FC<GameCardProps> = ({
   isSkillMatch,
   userSkills 
 }) => {
+  const navigation = useNavigation();
   const isFull = (game.current_players ?? 0) >= game.max_players;
   const isConfirmed = game.status === 'confirmed';
   const timeString = formatTime(game.scheduled_time, game.time_type);
@@ -426,6 +405,9 @@ const GameCard: React.FC<GameCardProps> = ({
   // Get user's skill for this sport
   const userSkillForSport = userSkills.find(s => s.sport_id === game.sport_id);
   const hasSkillRequirements = game.skill_level_min || game.skill_level_max;
+  
+  // Check if user is eligible based on skill level
+  const isUserEligible = !hasSkillRequirements || isSkillMatch;
 
   return (
     <Card style={[styles.gameCard, isSkillMatch && hasSkillRequirements && styles.gameCardSkillMatch]}>
@@ -471,9 +453,9 @@ const GameCard: React.FC<GameCardProps> = ({
           <View style={styles.detailRow}>
             <Text style={styles.detailIcon}>📊</Text>
             <Text style={styles.detailText}>
-              Skill: {game.skill_level_min && SKILL_LEVEL_LABELS[game.skill_level_min]}
-              {game.skill_level_min && game.skill_level_max && ' - '}
-              {game.skill_level_max && SKILL_LEVEL_LABELS[game.skill_level_max]}
+              Skill Level: {game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min] : 'Any'} 
+              {' - '} 
+              {game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max] : 'Any'}
             </Text>
           </View>
         )}
@@ -482,11 +464,17 @@ const GameCard: React.FC<GameCardProps> = ({
       {/* Action Button */}
       {game.is_joined ? (
         <TouchableOpacity
-          style={[styles.gameButton, styles.gameButtonLeave]}
-          onPress={() => onLeave(game.id)}
+          style={[styles.gameButton, styles.gameButtonInGame]}
+          onPress={() => navigation.navigate('GameDetail' as never, { gameId: game.id } as never)}
         >
-          <Text style={styles.gameButtonTextLeave}>Leave Game</Text>
+          <Text style={styles.gameButtonTextInGame}>You are in this game - View Details</Text>
         </TouchableOpacity>
+      ) : !isUserEligible ? (
+        <View style={[styles.gameButton, styles.gameButtonDisabled]}>
+          <Text style={styles.gameButtonText}>
+            ⚠️ Your skill level doesn't match this game
+          </Text>
+        </View>
       ) : (
         <TouchableOpacity
           style={[
@@ -536,32 +524,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  filterScroll: {
+  filterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: Spacing.md,
-  },
-  filterContent: {
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
     backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: Colors.border,
     gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+    minWidth: '30%',
+    maxWidth: '32%',
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   filterChipIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
   filterChipText: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.medium,
     color: Colors.text,
   },
@@ -682,20 +674,20 @@ const styles = StyleSheet.create({
   gameButtonDisabled: {
     backgroundColor: Colors.backgroundTertiary,
   },
-  gameButtonLeave: {
-    backgroundColor: Colors.backgroundTertiary,
-    borderWidth: 1,
-    borderColor: Colors.error,
+  gameButtonInGame: {
+    backgroundColor: Colors.available,
+    borderWidth: 2,
+    borderColor: Colors.available,
   },
   gameButtonText: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,
   },
-  gameButtonTextLeave: {
+  gameButtonTextInGame: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
-    color: Colors.error,
+    color: Colors.textInverse,
   },
   // Skill Filtering Section
   skillFilterSection: {

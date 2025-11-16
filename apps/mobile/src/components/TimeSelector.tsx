@@ -28,17 +28,71 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
 }) => {
   // For precise time slider
   const [sliderValue, setSliderValue] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Calculate time range for precise mode (now to 11 PM)
-  const now = new Date();
+  // Update current time every 30 seconds to keep slider accurate
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate time range for precise mode (45 minutes from now to 11 PM, rounded to nearest 15-min mark)
+  const now = currentTime;
+  
+  // Round up to next 15-minute mark after adding 45 minutes
+  const minTimeRaw = new Date(now.getTime() + 45 * 60 * 1000);
+  const minTime = new Date(minTimeRaw);
+  const minutes = minTime.getMinutes();
+  const roundedMinutes = Math.ceil(minutes / 15) * 15;
+  minTime.setMinutes(roundedMinutes, 0, 0);
+  
+  // If rounding pushed us to next hour
+  if (roundedMinutes >= 60) {
+    minTime.setHours(minTime.getHours() + 1, 0, 0, 0);
+  }
+  
   const endOfDay = new Date(now);
   endOfDay.setHours(23, 0, 0, 0); // 11 PM
   
-  const maxMinutesFromNow = Math.floor((endOfDay.getTime() - now.getTime()) / (1000 * 60));
+  // If end of day is before min time, set end of day to tomorrow at 11 PM
+  if (endOfDay <= minTime) {
+    endOfDay.setDate(endOfDay.getDate() + 1);
+  }
+  
+  const maxMinutesFromMin = Math.floor((endOfDay.getTime() - minTime.getTime()) / (1000 * 60));
+  
+  // Auto-update selected time if it's too close to now
+  React.useEffect(() => {
+    if (timeType === 'precise' && selectedTime) {
+      const timeDiff = selectedTime.getTime() - now.getTime();
+      if (timeDiff < 45 * 60 * 1000) {
+        // Selected time is less than 45 minutes away, update it
+        const newSliderValue = 0; // Reset to minimum
+        setSliderValue(newSliderValue);
+        onTimeChange(minTime);
+      }
+    }
+  }, [currentTime, timeType]);
   
   const handlePreciseTimeChange = (minutes: number) => {
-    setSliderValue(minutes);
-    const newTime = new Date(now.getTime() + minutes * 60 * 1000);
+    // Round to nearest 15 minutes
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    setSliderValue(roundedMinutes);
+    
+    // Calculate the new time
+    const newTime = new Date(minTime.getTime() + roundedMinutes * 60 * 1000);
+    
+    // Ensure it lands on :00, :15, :30, or :45
+    const mins = newTime.getMinutes();
+    const roundedMins = Math.round(mins / 15) * 15;
+    newTime.setMinutes(roundedMins % 60, 0, 0);
+    if (roundedMins >= 60) {
+      newTime.setHours(newTime.getHours() + 1);
+    }
+    
     onTimeChange(newTime);
   };
 
@@ -52,10 +106,13 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   };
 
   const formatRelativeTime = (minutes: number): string => {
-    if (minutes === 0) return 'Right now';
-    if (minutes < 60) return `In ${minutes} minutes`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    if (!selectedTime) return 'Select a time';
+    const diffMs = selectedTime.getTime() - now.getTime();
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    if (totalMinutes < 60) return `In ${totalMinutes} minutes`;
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
     if (mins === 0) return `In ${hours} hour${hours > 1 ? 's' : ''}`;
     return `In ${hours}h ${mins}m`;
   };
@@ -72,14 +129,6 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
       {/* Time Mode Selector */}
       <View style={styles.modeSelector}>
         <TouchableOpacity
-          style={[styles.modeButton, timeType === 'now' && styles.modeButtonActive]}
-          onPress={() => onTimeTypeChange('now')}
-        >
-          <Text style={[styles.modeIcon, timeType === 'now' && styles.modeIconActive]}>⚡</Text>
-          <Text style={[styles.modeText, timeType === 'now' && styles.modeTextActive]}>Now</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.modeButton, timeType === 'time_of_day' && styles.modeButtonActive]}
           onPress={() => onTimeTypeChange('time_of_day')}
         >
@@ -95,28 +144,19 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
         >
           <Text style={[styles.modeIcon, timeType === 'precise' && styles.modeIconActive]}>🕐</Text>
           <Text style={[styles.modeText, timeType === 'precise' && styles.modeTextActive]}>
-            Precise
+            Choose Time
           </Text>
         </TouchableOpacity>
       </View>
 
+      <View style={styles.minimumNotice}>
+        <Text style={styles.minimumNoticeText}>
+          ⏱️ Games must be scheduled at least 45 minutes in advance
+        </Text>
+      </View>
+
       {/* Mode Content */}
       <View style={styles.modeContent}>
-        {/* NOW Mode */}
-        {timeType === 'now' && (
-          <View style={styles.nowContainer}>
-            <View style={styles.nowCard}>
-              <Text style={styles.nowIcon}>⚡</Text>
-              <Text style={styles.nowTitle}>Start Right Now!</Text>
-              <Text style={styles.nowDescription}>
-                Game will be posted immediately and players can join right away
-              </Text>
-              <View style={styles.timeDisplay}>
-                <Text style={styles.timeDisplayText}>{formatTime(new Date())}</Text>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* TIME OF DAY Mode */}
         {timeType === 'time_of_day' && (
@@ -133,20 +173,39 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
               } else {
                 optionTime.setHours(hour, 0, 0, 0);
               }
+              
+              // Check if this time is at least 45 minutes from now
+              const minAllowedTime = new Date(now.getTime() + 45 * 60 * 1000);
+              const isDisabled = optionTime < minAllowedTime;
 
               return (
                 <TouchableOpacity
                   key={option}
-                  style={[styles.timeOfDayOption, isSelected && styles.timeOfDayOptionActive]}
+                  style={[
+                    styles.timeOfDayOption, 
+                    isSelected && styles.timeOfDayOptionActive,
+                    isDisabled && styles.timeOfDayOptionDisabled
+                  ]}
                   onPress={() => {
-                    onTimeOfDayChange(option);
-                    onTimeChange(optionTime);
+                    if (!isDisabled) {
+                      onTimeOfDayChange(option);
+                      onTimeChange(optionTime);
+                    }
                   }}
+                  disabled={isDisabled}
                 >
-                  <Text style={[styles.timeOfDayLabel, isSelected && styles.timeOfDayLabelActive]}>
-                    {label}
+                  <Text style={[
+                    styles.timeOfDayLabel, 
+                    isSelected && styles.timeOfDayLabelActive,
+                    isDisabled && styles.timeOfDayLabelDisabled
+                  ]}>
+                    {label} {isDisabled && '(too soon)'}
                   </Text>
-                  <Text style={[styles.timeOfDayTime, isSelected && styles.timeOfDayTimeActive]}>
+                  <Text style={[
+                    styles.timeOfDayTime, 
+                    isSelected && styles.timeOfDayTimeActive,
+                    isDisabled && styles.timeOfDayTimeDisabled
+                  ]}>
                     {formatTime(optionTime)}
                   </Text>
                 </TouchableOpacity>
@@ -172,7 +231,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
               <Slider
                 style={styles.slider}
                 minimumValue={0}
-                maximumValue={maxMinutesFromNow}
+                maximumValue={maxMinutesFromMin}
                 value={sliderValue}
                 onValueChange={handlePreciseTimeChange}
                 minimumTrackTintColor={Colors.primary}
@@ -181,14 +240,14 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                 step={15} // 15-minute intervals
               />
               <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabel}>Now</Text>
+                <Text style={styles.sliderLabel}>{formatTime(minTime)}</Text>
                 <Text style={styles.sliderLabel}>11:00 PM</Text>
               </View>
             </View>
 
             <View style={styles.helperBox}>
               <Text style={styles.helperText}>
-                💡 Drag the slider to set a precise time
+                💡 Drag the slider to set a precise time (15-minute intervals)
               </Text>
             </View>
           </View>
@@ -334,6 +393,28 @@ const styles = StyleSheet.create({
   },
   timeOfDayTimeActive: {
     color: Colors.primary,
+  },
+  timeOfDayOptionDisabled: {
+    opacity: 0.5,
+  },
+  timeOfDayLabelDisabled: {
+    color: Colors.textTertiary,
+  },
+  timeOfDayTimeDisabled: {
+    color: Colors.textTertiary,
+  },
+  minimumNotice: {
+    backgroundColor: Colors.backgroundSecondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.info,
+  },
+  minimumNoticeText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
   // PRECISE Time Mode
   preciseContainer: {

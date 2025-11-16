@@ -55,6 +55,7 @@ export const GameDetailScreen: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [showEndGameModal, setShowEndGameModal] = useState(false);
   const [endGameCountdown, setEndGameCountdown] = useState<number>(5);
+  const [showPlayersModal, setShowPlayersModal] = useState(false);
 
   const chatChannelRef = useRef<RealtimeChannel | null>(null);
   const participantChannelRef = useRef<RealtimeChannel | null>(null);
@@ -401,33 +402,26 @@ export const GameDetailScreen: React.FC = () => {
               </View>
             )}
           </View>
-        </Card>
 
-        {/* Player List Section */}
-        <Card style={styles.playersCard}>
-          <Text style={styles.sectionTitle}>Players ({game.current_players})</Text>
-          <View style={styles.playersList}>
-            {game.participants && game.participants.length > 0 ? (
-              game.participants.map((player: Profile) => (
-                <View key={player.id} style={styles.playerItem}>
-                  <View style={styles.playerAvatar}>
-                    <Text style={styles.playerAvatarText}>
-                      {(player.username || player.discord_username || 'U').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.playerName}>
-                    {player.username || player.discord_username || 'Unknown'}
-                  </Text>
-                  {player.id === game.creator_id && (
-                    <View style={styles.creatorBadge}>
-                      <Text style={styles.creatorBadgeText}>Creator</Text>
-                    </View>
-                  )}
-                </View>
-              ))
-            ) : (
-              <Text style={styles.noPlayersText}>No players yet</Text>
-            )}
+          {/* Action Buttons in Game Info */}
+          <View style={styles.infoActionsRow}>
+            <TouchableOpacity 
+              style={styles.infoActionButton}
+              onPress={handleShareGame}
+            >
+              <Text style={styles.infoActionIcon}>📤</Text>
+              <Text style={styles.infoActionText}>Share</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.infoActionButton}
+              onPress={() => setShowPlayersModal(true)}
+            >
+              <Text style={styles.infoActionIcon}>👥</Text>
+              <Text style={styles.infoActionText}>
+                Players ({game.current_players})
+              </Text>
+            </TouchableOpacity>
           </View>
         </Card>
 
@@ -502,11 +496,6 @@ export const GameDetailScreen: React.FC = () => {
 
         {/* Action Buttons at Bottom */}
         <View style={styles.actionsSection}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleShareGame}>
-            <Text style={styles.actionButtonIcon}>📤</Text>
-            <Text style={styles.actionButtonText}>Share Game</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonDanger]}
             onPress={handleLeaveGame}
@@ -524,6 +513,54 @@ export const GameDetailScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Players List Modal */}
+      <Modal
+        visible={showPlayersModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowPlayersModal(false)}
+      >
+        <View style={styles.playersModalContainer}>
+          <View style={styles.playersModalHeader}>
+            <TouchableOpacity onPress={() => setShowPlayersModal(false)}>
+              <Text style={styles.playersModalCloseButton}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.playersModalHeaderTitle}>
+              Players ({game?.current_players || 0})
+            </Text>
+            <View style={{ width: 30 }} />
+          </View>
+
+          <ScrollView style={styles.playersModalScroll} showsVerticalScrollIndicator={true}>
+            <View style={styles.playersModalList}>
+              {game?.participants && game.participants.length > 0 ? (
+                game.participants.map((player: Profile) => (
+                  <View key={player.id} style={styles.playersModalItem}>
+                    <View style={styles.playersModalAvatar}>
+                      <Text style={styles.playersModalAvatarText}>
+                        {(player.username || player.discord_username || 'U').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.playersModalInfo}>
+                      <Text style={styles.playersModalName}>
+                        {player.username || player.discord_username || 'Unknown'}
+                      </Text>
+                      {player.id === game?.creator_id && (
+                        <View style={styles.playersModalCreatorBadge}>
+                          <Text style={styles.playersModalCreatorBadgeText}>👑 Creator</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.playersModalNoPlayers}>No players yet</Text>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* End Game Confirmation Modal */}
       <Modal
@@ -644,11 +681,39 @@ const styles = StyleSheet.create({
   },
   gameDetails: {
     gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  infoActionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  infoActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.backgroundSecondary,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  infoActionIcon: {
+    fontSize: 18,
+  },
+  infoActionText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
   },
   detailIcon: {
     fontSize: 16,
@@ -659,57 +724,128 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     flex: 1,
   },
-  // Players List
+  // Players List Card
   playersCard: {
     marginBottom: Spacing.md,
+  },
+  playersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  playersButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  playersButtonIcon: {
+    fontSize: 32,
+  },
+  playersButtonTextContainer: {
+    flex: 1,
+  },
+  playersButtonTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  playersButtonSubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+  },
+  playersButtonArrow: {
+    fontSize: Typography.fontSize.xxl,
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  // Players Modal
+  playersModalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  playersModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  playersModalHeaderTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text,
+  },
+  playersModalCloseButton: {
+    fontSize: Typography.fontSize.xxxl,
+    color: Colors.textSecondary,
+    width: 30,
+    textAlign: 'center',
+  },
+  playersModalScroll: {
+    flex: 1,
+  },
+  playersModalList: {
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  playersModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    ...Shadows.small,
+  },
+  playersModalAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playersModalAvatarText: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textInverse,
+  },
+  playersModalInfo: {
+    flex: 1,
+  },
+  playersModalName: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  playersModalCreatorBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  playersModalCreatorBadgeText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.primaryDark,
+  },
+  playersModalNoPlayers: {
+    fontSize: Typography.fontSize.md,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: Spacing.xl,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: Spacing.md,
-  },
-  playersList: {
-    gap: Spacing.sm,
-  },
-  playerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  playerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playerAvatarText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.textInverse,
-  },
-  playerName: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text,
-    flex: 1,
-  },
-  creatorBadge: {
-    backgroundColor: Colors.backgroundTertiary,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.xs,
-  },
-  creatorBadgeText: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
-  },
-  noPlayersText: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
   },
   // Actions
   actionsSection: {

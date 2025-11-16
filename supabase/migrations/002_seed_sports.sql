@@ -3,7 +3,7 @@
 
 INSERT INTO sports (name, slug, icon) VALUES
   ('Basketball', 'basketball', '🏀'),
-  ('Pickleball', 'pickleball', '🏓'),
+  ('Pickleball', 'pickleball', '🥒'),
   ('Volleyball', 'volleyball', '🏐'),
   ('Football', 'football', '🏈'),
   ('Ping Pong', 'ping-pong', '🏓'),

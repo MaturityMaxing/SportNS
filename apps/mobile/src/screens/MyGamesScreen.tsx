@@ -193,7 +193,7 @@ export const MyGamesScreen: React.FC = () => {
         <View style={styles.gamesSection}>
           {games.length === 0 ? (
             <EmptyState
-              icon="🎮"
+              icon="⚽"
               title="No Games Yet"
               description="Join games from the Dashboard to see them here"
             />

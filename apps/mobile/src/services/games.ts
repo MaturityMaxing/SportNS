@@ -565,3 +565,63 @@ export const subscribeToParticipantUpdates = (
   return channel;
 };
 
+/**
+ * User Statistics Interface
+ */
+export interface UserStats {
+  totalGames: number;
+  completedGames: number;
+  activeGames: number;
+  gamesCreated: number;
+}
+
+/**
+ * Get comprehensive user statistics
+ */
+export const getUserStats = async (userId: string): Promise<UserStats> => {
+  try {
+    // Get all games the user has participated in
+    const { data: allParticipations, error: participationError } = await supabase
+      .from('game_participants')
+      .select('game_id, game_events!inner(status)')
+      .eq('player_id', userId);
+
+    if (participationError) throw participationError;
+
+    // Count different game types
+    const totalGames = allParticipations?.length || 0;
+    const completedGames = allParticipations?.filter(
+      (p: any) => p.game_events?.status === 'completed'
+    ).length || 0;
+    const activeGames = allParticipations?.filter(
+      (p: any) => p.game_events?.status === 'waiting' || p.game_events?.status === 'confirmed'
+    ).length || 0;
+
+    // Get games created by user
+    const { data: createdGames, error: createdError } = await supabase
+      .from('game_events')
+      .select('id')
+      .eq('creator_id', userId);
+
+    if (createdError) throw createdError;
+
+    const gamesCreated = createdGames?.length || 0;
+
+    return {
+      totalGames,
+      completedGames,
+      activeGames,
+      gamesCreated,
+    };
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    // Return zeros on error instead of throwing
+    return {
+      totalGames: 0,
+      completedGames: 0,
+      activeGames: 0,
+      gamesCreated: 0,
+    };
+  }
+};
+

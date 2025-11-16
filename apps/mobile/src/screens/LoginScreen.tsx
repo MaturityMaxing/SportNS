@@ -49,7 +49,7 @@ export default function LoginScreen() {
         <View style={styles.features}>
           <FeatureItem icon="⚡" text="Real-time availability tracking" />
           <FeatureItem icon="🏆" text="Competitive ELO rankings" />
-          <FeatureItem icon="🎮" text="Challenge other players" />
+          <FeatureItem icon="⚽" text="Challenge other players" />
           <FeatureItem icon="📊" text="Track your performance" />
         </View>
       </View>

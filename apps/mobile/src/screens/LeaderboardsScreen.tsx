@@ -161,30 +161,21 @@ export const LeaderboardsScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Leagues</Text>
         <Text style={styles.subtitle}>
-          Compete and climb the rankings in your favorite sports
+          Coming Soon!
         </Text>
       </View>
 
-      {/* Sport Selector */}
-      {renderSportSelector()}
-
-      {/* Leaderboard List */}
+      {/* Coming Soon Message */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {mockLeaderboard.length === 0 ? (
-          <EmptyState
-            icon="🏆"
-            title="No Rankings Yet"
-            description={`Be the first to compete in ${selectedSportName}! Challenge other players to start building your ranking.`}
-          />
-        ) : (
-          <View style={styles.leaderboardList}>
-            {mockLeaderboard.map(renderLeaderboardEntry)}
-          </View>
-        )}
+        <EmptyState
+          icon="🏆"
+          title="Leagues Coming Soon"
+          description="We're working on an exciting competitive league system. Stay tuned for rankings, tournaments, and more!"
+        />
       </ScrollView>
     </View>
   );
