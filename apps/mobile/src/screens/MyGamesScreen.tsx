@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
 import { getUserGames, subscribeToGameUpdates, unsubscribeFromGameUpdates } from '../services/games';
@@ -47,11 +47,22 @@ export const MyGamesScreen: React.FC = () => {
     }
   }, [currentUserId]);
 
+  // Reload data when screen comes into focus (e.g., navigating back from GameDetail or PostGame)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (currentUserId) {
+        loadGames(currentUserId);
+      }
+    }, [currentUserId])
+  );
+
   const setupRealtimeSubscriptions = () => {
     // Subscribe to game updates (status changes, new games, etc.)
     realtimeChannelRef.current = subscribeToGameUpdates(() => {
       console.log('Game update detected in My Games');
-      loadData();
+      if (currentUserId) {
+        loadGames(currentUserId);
+      }
     });
   };
 
@@ -61,30 +72,16 @@ export const MyGamesScreen: React.FC = () => {
       const user = await getCurrentUser();
       
       if (user) {
-        const [profileData, gamesData] = await Promise.all([
-          getProfile(user.id),
-          getUserGames(user.id),
-        ]);
-        
         setCurrentUserId(user.id);
-        setProfile(profileData);
         
-        // Sort games: confirmed first, then by closest time
-        const sortedGames = gamesData.sort((a, b) => {
-          // First sort by status (confirmed games first)
-          const aIsConfirmed = a.status === 'confirmed';
-          const bIsConfirmed = b.status === 'confirmed';
-          
-          if (aIsConfirmed && !bIsConfirmed) return -1;
-          if (!aIsConfirmed && bIsConfirmed) return 1;
-          
-          // If same status, sort by time (closest first)
-          const aTime = new Date(a.scheduled_time).getTime();
-          const bTime = new Date(b.scheduled_time).getTime();
-          return aTime - bTime;
-        });
+        // Load profile only if not already loaded
+        if (!profile) {
+          const profileData = await getProfile(user.id);
+          setProfile(profileData);
+        }
         
-        setGames(sortedGames);
+        // Load games
+        await loadGames(user.id);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -94,10 +91,43 @@ export const MyGamesScreen: React.FC = () => {
     }
   };
 
+  const loadGames = async (userId: string) => {
+    try {
+      const gamesData = await getUserGames(userId);
+      
+      // Sort games: confirmed first, then by closest time
+      const sortedGames = gamesData.sort((a, b) => {
+        // First sort by status (confirmed games first)
+        const aIsConfirmed = a.status === 'confirmed';
+        const bIsConfirmed = b.status === 'confirmed';
+        
+        if (aIsConfirmed && !bIsConfirmed) return -1;
+        if (!aIsConfirmed && bIsConfirmed) return 1;
+        
+        // If same status, sort by time (closest first)
+        const aTime = new Date(a.scheduled_time).getTime();
+        const bTime = new Date(b.scheduled_time).getTime();
+        return aTime - bTime;
+      });
+      
+      setGames(sortedGames);
+    } catch (error) {
+      console.error('Error loading games:', error);
+      throw error;
+    }
+  };
+
   const handleRefresh = async () => {
+    if (!currentUserId) return;
+    
     setIsRefreshing(true);
-    await loadData();
-    setIsRefreshing(false);
+    try {
+      await loadGames(currentUserId);
+    } catch (error) {
+      console.error('Error refreshing games:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleProfilePress = () => {
@@ -105,7 +135,7 @@ export const MyGamesScreen: React.FC = () => {
   };
 
   const handleGamePress = (gameId: string) => {
-    navigation.navigate('GameDetail' as never, { gameId } as never);
+    (navigation as any).navigate('GameDetail', { gameId });
   };
 
   const formatTime = (dateString: string, timeType: string) => {
@@ -231,52 +261,51 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, formatTime }) => {
       activeOpacity={0.7}
     >
       <Card style={styles.gameCard}>
-        {/* Header */}
+        {/* Header - Minimal */}
         <View style={styles.gameHeader}>
-          <View style={styles.gameTitleRow}>
-            <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
-            <View>
-              <Text style={styles.gameSportName}>{game.sport?.name || 'Sport'}</Text>
-              <Text style={styles.gameCreator}>
-                by {game.creator?.username || game.creator?.discord_username || 'Unknown'}
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.statusBadge, isConfirmed && styles.statusBadgeConfirmed]}>
-            <Text style={styles.statusBadgeText}>
-              {isConfirmed ? '✓ Confirmed' : '⏳ Waiting'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Details */}
-        <View style={styles.gameDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>⏰</Text>
-            <Text style={styles.detailText}>{timeString}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>👥</Text>
-            <Text style={styles.detailText}>
-              {game.current_players}/{game.max_players} players
-              {game.min_players > 0 && ` (min ${game.min_players})`}
-            </Text>
-          </View>
-          {(game.skill_level_min || game.skill_level_max) && (
+          <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
+          <View style={styles.gameInfoCompact}>
+            {/* Sport Name */}
+            <Text style={styles.sportName}>{game.sport?.name || 'Unknown Sport'}</Text>
+            
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>📊</Text>
+              <Text style={styles.detailIcon}>⏰</Text>
+              <Text style={styles.detailText}>{timeString}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>👥</Text>
               <Text style={styles.detailText}>
-                Skill: {game.skill_level_min && SKILL_LEVEL_LABELS[game.skill_level_min]}
-                {game.skill_level_min && game.skill_level_max && ' - '}
-                {game.skill_level_max && SKILL_LEVEL_LABELS[game.skill_level_max]}
+                {(() => {
+                  const current = game.current_players ?? 0;
+                  const max = game.max_players;
+                  const min = game.min_players;
+                  const isConfirmed = current >= min;
+                  
+                  if (isConfirmed) {
+                    return `${current}/${max} ✓ Confirmed`;
+                  } else {
+                    const needed = min - current;
+                    return `${current}/${max} (needs ${needed} more)`;
+                  }
+                })()}
               </Text>
             </View>
-          )}
-        </View>
-
-        {/* Tap Hint */}
-        <View style={styles.tapHint}>
-          <Text style={styles.tapHintText}>Tap for details →</Text>
+            {(game.skill_level_min || game.skill_level_max) && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailIcon}>📊</Text>
+                <Text style={styles.detailText}>
+                  {game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min] : 'Any'}
+                  {' - '}
+                  {game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max] : 'Any'}
+                </Text>
+              </View>
+            )}
+            {isConfirmed && (
+              <View style={styles.confirmedBadgeInline}>
+                <Text style={styles.confirmedBadgeText}>✓ Confirmed</Text>
+              </View>
+            )}
+          </View>
         </View>
       </Card>
     </TouchableOpacity>
@@ -331,46 +360,34 @@ const styles = StyleSheet.create({
   },
   gameHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    gap: Spacing.md,
   },
-  gameTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  gameInfoCompact: {
     flex: 1,
+    gap: Spacing.xs,
   },
   sportIcon: {
-    fontSize: 32,
+    fontSize: 40,
   },
-  gameSportName: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+  sportName: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
+    marginBottom: Spacing.xs,
   },
-  gameCreator: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  statusBadge: {
-    backgroundColor: Colors.backgroundTertiary,
+  confirmedBadgeInline: {
+    backgroundColor: Colors.available,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.xs,
   },
-  statusBadgeConfirmed: {
-    backgroundColor: Colors.available,
-  },
-  statusBadgeText: {
+  confirmedBadgeText: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
-  },
-  gameDetails: {
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
@@ -385,18 +402,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     flex: 1,
-  },
-  tapHint: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.backgroundTertiary,
-    alignItems: 'center',
-  },
-  tapHintText: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
   },
 });
 

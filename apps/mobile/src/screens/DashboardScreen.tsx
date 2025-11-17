@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
 import { 
@@ -21,7 +21,7 @@ import {
 } from '../services/games';
 import { getCurrentUser, getProfile, getSkillLevels } from '../services/auth';
 import { getSports } from '../services/auth';
-import type { GameEventWithDetails, Sport, Profile, PlayerSkillLevel, SkillLevel } from '../types';
+import type { GameEventWithDetails, Sport, Profile, PlayerSkillLevel } from '../types';
 import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from '../types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -59,6 +59,15 @@ export const DashboardScreen: React.FC = () => {
       }
     };
   }, []);
+
+  // Reload games when screen comes into focus (e.g., navigating back from PostGame)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (currentUserId) {
+        loadGames();
+      }
+    }, [currentUserId])
+  );
 
   useEffect(() => {
     if (!isLoading) {
@@ -392,14 +401,12 @@ interface GameCardProps {
 const GameCard: React.FC<GameCardProps> = ({ 
   game, 
   onJoin, 
-  onLeave, 
   formatTime, 
   isSkillMatch,
   userSkills 
 }) => {
   const navigation = useNavigation();
   const isFull = (game.current_players ?? 0) >= game.max_players;
-  const isConfirmed = game.status === 'confirmed';
   const timeString = formatTime(game.scheduled_time, game.time_type);
   
   // Get user's skill for this sport
@@ -409,87 +416,107 @@ const GameCard: React.FC<GameCardProps> = ({
   // Check if user is eligible based on skill level
   const isUserEligible = !hasSkillRequirements || isSkillMatch;
 
+  const handleCardPress = () => {
+    if (game.is_joined) {
+      // Navigate to game details if user is in the game
+      (navigation as any).navigate('GameDetail', { gameId: game.id });
+    } else if (isUserEligible && !isFull) {
+      // Join game if eligible and not full
+      onJoin(game.id);
+    }
+    // If not eligible or full, do nothing (card not clickable)
+  };
+
   return (
-    <Card style={[styles.gameCard, isSkillMatch && hasSkillRequirements && styles.gameCardSkillMatch]}>
-      {/* Skill Match Badge */}
-      {isSkillMatch && hasSkillRequirements && userSkillForSport && (
-        <View style={styles.skillMatchBadge}>
-          <Text style={styles.skillMatchBadgeText}>✨ Perfect Match for Your Level</Text>
-        </View>
-      )}
-
-      {/* Header */}
-      <View style={styles.gameHeader}>
-        <View style={styles.gameTitleRow}>
-          <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
-          <View>
-            <Text style={styles.gameSportName}>{game.sport?.name || 'Sport'}</Text>
-            <Text style={styles.gameCreator}>
-              by {game.creator?.username || game.creator?.discord_username || 'Unknown'}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.statusBadge, isConfirmed && styles.statusBadgeConfirmed]}>
-          <Text style={styles.statusBadgeText}>
-            {isConfirmed ? '✓ Confirmed' : '⏳ Waiting'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Details */}
-      <View style={styles.gameDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>⏰</Text>
-          <Text style={styles.detailText}>{timeString}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>👥</Text>
-          <Text style={styles.detailText}>
-            {game.current_players}/{game.max_players} players
-            {game.min_players > 0 && ` (min ${game.min_players})`}
-          </Text>
-        </View>
-        {(game.skill_level_min || game.skill_level_max) && (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>📊</Text>
-            <Text style={styles.detailText}>
-              Skill Level: {game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min] : 'Any'} 
-              {' - '} 
-              {game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max] : 'Any'}
-            </Text>
+    <TouchableOpacity
+      activeOpacity={game.is_joined || (isUserEligible && !isFull) ? 0.7 : 1}
+      onPress={handleCardPress}
+      disabled={!game.is_joined && (!isUserEligible || isFull)}
+    >
+      <Card style={[styles.gameCard, isSkillMatch && hasSkillRequirements && styles.gameCardSkillMatch]}>
+        {/* Skill Match Badge */}
+        {isSkillMatch && hasSkillRequirements && userSkillForSport && (
+          <View style={styles.skillMatchBadge}>
+            <Text style={styles.skillMatchBadgeText}>✨ Perfect Match for Your Level</Text>
           </View>
         )}
-      </View>
 
-      {/* Action Button */}
-      {game.is_joined ? (
-        <TouchableOpacity
-          style={[styles.gameButton, styles.gameButtonInGame]}
-          onPress={() => navigation.navigate('GameDetail' as never, { gameId: game.id } as never)}
-        >
-          <Text style={styles.gameButtonTextInGame}>You are in this game - View Details</Text>
-        </TouchableOpacity>
-      ) : !isUserEligible ? (
-        <View style={[styles.gameButton, styles.gameButtonDisabled]}>
-          <Text style={styles.gameButtonText}>
-            ⚠️ Your skill level doesn't match this game
-          </Text>
+        {/* Header - Minimal */}
+        <View style={styles.gameHeader}>
+          <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
+          <View style={styles.gameInfoCompact}>
+            {/* Sport Name */}
+            <Text style={styles.sportName}>{game.sport?.name || 'Unknown Sport'}</Text>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>⏰</Text>
+              <Text style={styles.detailText}>{timeString}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>👥</Text>
+              <Text style={styles.detailText}>
+                {(() => {
+                  const current = game.current_players ?? 0;
+                  const max = game.max_players;
+                  const min = game.min_players;
+                  const isConfirmed = current >= min;
+                  
+                  if (isConfirmed) {
+                    return `${current}/${max} ✓ Confirmed`;
+                  } else {
+                    const needed = min - current;
+                    return `${current}/${max} (needs ${needed} more)`;
+                  }
+                })()}
+              </Text>
+            </View>
+            {(game.skill_level_min || game.skill_level_max) && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailIcon}>📊</Text>
+                <Text style={styles.detailText}>
+                  {game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min] : 'Any'} 
+                  {' - '} 
+                  {game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max] : 'Any'}
+                </Text>
+              </View>
+            )}
+          </View>
+          
+          {/* Green checkmark if user is in the game */}
+          {game.is_joined && (
+            <View style={styles.joinedBadge}>
+              <Text style={styles.joinedCheckmark}>✓</Text>
+            </View>
+          )}
         </View>
-      ) : (
-        <TouchableOpacity
-          style={[
-            styles.gameButton,
-            isFull && styles.gameButtonDisabled,
-          ]}
-          onPress={() => onJoin(game.id)}
-          disabled={isFull}
-        >
-          <Text style={styles.gameButtonText}>
-            {isFull ? 'Game Full' : 'Join Game'}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </Card>
+
+        {/* Action Button - Only show if not joined */}
+        {!game.is_joined && (
+          <>
+            {!isUserEligible ? (
+              <View style={[styles.gameButton, styles.gameButtonDisabled]}>
+                <Text style={styles.gameButtonText}>
+                  ⚠️ Your skill level doesn't match this game
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  styles.gameButton,
+                  isFull && styles.gameButtonDisabled,
+                ]}
+                onPress={() => onJoin(game.id)}
+                disabled={isFull}
+              >
+                <Text style={styles.gameButtonText}>
+                  {isFull ? 'Game Full' : 'Join Game'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+      </Card>
+    </TouchableOpacity>
   );
 };
 
@@ -609,42 +636,36 @@ const styles = StyleSheet.create({
   },
   gameHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
   },
-  gameTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  gameInfoCompact: {
     flex: 1,
+    gap: Spacing.xs,
   },
   sportIcon: {
-    fontSize: 32,
+    fontSize: 40,
   },
-  gameSportName: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+  sportName: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
+    marginBottom: Spacing.xs,
   },
-  gameCreator: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
-    marginTop: 2,
+  joinedBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.sm,
   },
-  statusBadge: {
-    backgroundColor: Colors.backgroundTertiary,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-  },
-  statusBadgeConfirmed: {
-    backgroundColor: Colors.available,
-  },
-  statusBadgeText: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+  joinedCheckmark: {
+    fontSize: 20,
     color: Colors.textInverse,
+    fontWeight: Typography.fontWeight.bold,
   },
   gameDetails: {
     gap: Spacing.sm,

@@ -29,6 +29,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   // For precise time slider
   const [sliderValue, setSliderValue] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [initialized, setInitialized] = useState(false);
 
   // Update current time every 30 seconds to keep slider accurate
   React.useEffect(() => {
@@ -64,9 +65,18 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   
   const maxMinutesFromMin = Math.floor((endOfDay.getTime() - minTime.getTime()) / (1000 * 60));
   
+  // Initialize with minTime on first load when in precise mode
+  React.useEffect(() => {
+    if (timeType === 'precise' && !initialized) {
+      setSliderValue(0);
+      onTimeChange(minTime);
+      setInitialized(true);
+    }
+  }, [timeType, initialized]);
+  
   // Auto-update selected time if it's too close to now
   React.useEffect(() => {
-    if (timeType === 'precise' && selectedTime) {
+    if (timeType === 'precise' && selectedTime && initialized) {
       const timeDiff = selectedTime.getTime() - now.getTime();
       if (timeDiff < 45 * 60 * 1000) {
         // Selected time is less than 45 minutes away, update it
@@ -206,7 +216,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                     isSelected && styles.timeOfDayTimeActive,
                     isDisabled && styles.timeOfDayTimeDisabled
                   ]}>
-                    {formatTime(optionTime)}
+                    ~{formatTime(optionTime)}
                   </Text>
                 </TouchableOpacity>
               );

@@ -157,26 +157,12 @@ export const LeaderboardsScreen: React.FC = () => {
         }}
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Leagues</Text>
-        <Text style={styles.subtitle}>
-          Coming Soon!
-        </Text>
-      </View>
-
       {/* Coming Soon Message */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <EmptyState
-          icon="🏆"
-          title="Leagues Coming Soon"
-          description="We're working on an exciting competitive league system. Stay tuned for rankings, tournaments, and more!"
-        />
-      </ScrollView>
+      <View style={styles.centeredContainer}>
+        <Text style={styles.cupIcon}>🏆</Text>
+        <Text style={styles.title}>Leagues</Text>
+        <Text style={styles.subtitle}>Coming Soon</Text>
+      </View>
     </View>
   );
 };
@@ -186,20 +172,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  cupIcon: {
+    fontSize: 64,
+    marginBottom: Spacing.lg,
   },
   title: {
     fontSize: Typography.fontSize.xxxl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: Typography.fontSize.md,
+    fontSize: Typography.fontSize.lg,
     color: Colors.textSecondary,
-    lineHeight: Typography.lineHeight.normal * Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
   },
   sportSelector: {
     maxHeight: 80,

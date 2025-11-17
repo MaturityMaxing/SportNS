@@ -16,8 +16,7 @@ import Slider from '@react-native-community/slider';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { getCurrentUser, getProfile, signOut, updateUsername, getSkillLevels, saveSkillLevels, getSports } from '../services/auth';
-import { getUserStats, type UserStats } from '../services/games';
-import type { Profile, Sport, SkillLevel, PlayerSkillLevel } from '../types';
+import type { Profile, Sport, SkillLevel } from '../types';
 import { SKILL_LEVEL_LABELS, SKILL_LEVEL_DESCRIPTIONS, SKILL_LEVELS } from '../types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { Button } from '../components';
@@ -40,16 +39,7 @@ export default function ProfileScreen() {
   const [showSkillsModal, setShowSkillsModal] = useState(false);
   const [sports, setSports] = useState<Sport[]>([]);
   const [skillSelections, setSkillSelections] = useState<Record<number, SkillLevel | null>>({});
-  const [currentSkills, setCurrentSkills] = useState<PlayerSkillLevel[]>([]);
   const [isUpdatingSkills, setIsUpdatingSkills] = useState(false);
-
-  // User statistics
-  const [userStats, setUserStats] = useState<UserStats>({
-    totalGames: 0,
-    completedGames: 0,
-    activeGames: 0,
-    gamesCreated: 0,
-  });
 
   useEffect(() => {
     loadProfile();
@@ -61,30 +51,8 @@ export default function ProfileScreen() {
       const user = await getCurrentUser();
       if (user) {
         const profileData = await getProfile(user.id);
-        if (!profileData) {
-          // Profile doesn't exist yet, might still be creating
-          console.warn('Profile not found, it may still be creating. Retrying in 2 seconds...');
-          // Wait a bit and retry once
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          const retryProfileData = await getProfile(user.id);
-          setProfile(retryProfileData);
-        } else {
-          setProfile(profileData);
-          
-          // Load user's skills, sports, and stats in parallel
-          try {
-            const [skillsData, sportsData, stats] = await Promise.all([
-              getSkillLevels(user.id),
-              getSports(),
-              getUserStats(user.id),
-            ]);
-            setCurrentSkills(skillsData);
-            setSports(sportsData);
-            setUserStats(stats);
-          } catch (error) {
-            console.error('Error loading profile data:', error);
-          }
-        }
+        setProfile(profileData);
+        // Skills, sports, and stats are loaded on-demand when needed
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -165,7 +133,6 @@ export default function ProfileScreen() {
       ]);
 
       setSports(sportsData);
-      setCurrentSkills(skillsData);
 
       // Initialize skill selections with current values
       const initialSelections: Record<number, SkillLevel | null> = {};
@@ -216,10 +183,6 @@ export default function ProfileScreen() {
       await saveSkillLevels(profile.id, selectedSkills);
       setShowSkillsModal(false);
       Alert.alert('Success', 'Skills updated successfully!');
-      
-      // Reload current skills
-      const updatedSkills = await getSkillLevels(profile.id);
-      setCurrentSkills(updatedSkills);
     } catch (error) {
       console.error('Error updating skills:', error);
       Alert.alert('Error', 'Failed to update skills');
@@ -282,100 +245,42 @@ export default function ProfileScreen() {
         {profile.discord_username && profile.username && (
           <Text style={styles.userId}>@{profile.discord_username}</Text>
         )}
+        <TouchableOpacity 
+          onPress={handleChangeUsername}
+          style={styles.changeUsernameButton}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.changeUsernameText}>Change username</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profile Information</Text>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Username</Text>
-          <TouchableOpacity onPress={handleChangeUsername}>
-            <Text style={styles.infoValueLink}>{profile.username || profile.discord_username}</Text>
-          </TouchableOpacity>
-        </View>
-        <InfoRow 
-          label="Member Since" 
-          value={new Date(profile.created_at).toLocaleDateString()}
-        />
-        
-        <View style={styles.actionButtonsRow}>
-          <Button
-            title="Change Username"
-            onPress={handleChangeUsername}
-            variant="outline"
-            size="small"
-            style={styles.actionButton}
-          />
-        </View>
-      </View>
-
-      {/* Re-evaluate Skills - More Prominent */}
-      <TouchableOpacity 
-        style={styles.skillsCalloutCard}
-        onPress={handleReEvaluateSkills}
-        activeOpacity={0.7}
-      >
-        <View style={styles.skillsCalloutHeader}>
-          <Text style={styles.skillsCalloutIcon}>⚡</Text>
-          <View style={styles.skillsCalloutContent}>
-            <Text style={styles.skillsCalloutTitle}>Update Your Skills</Text>
-            <Text style={styles.skillsCalloutSubtitle}>
-              {currentSkills.length > 0 
-                ? `You have ${currentSkills.length} sport${currentSkills.length !== 1 ? 's' : ''} evaluated. Tap to update.`
-                : 'Evaluate your skills to find better game matches!'}
-            </Text>
+      {/* Re-evaluate Skills Button */}
+      <View style={styles.primaryActionContainer}>
+        <TouchableOpacity 
+          style={styles.primaryActionButton}
+          onPress={handleReEvaluateSkills}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.primaryActionIcon}>📊</Text>
+          <View style={styles.primaryActionContent}>
+            <Text style={styles.primaryActionTitle}>Re-evaluate Skills</Text>
+            <Text style={styles.primaryActionSubtitle}>Update your skill levels</Text>
           </View>
-          <Text style={styles.skillsCalloutArrow}>→</Text>
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Statistics</Text>
-        <View style={styles.statsGrid}>
-          <StatCard 
-            title="Games Played" 
-            value={userStats.totalGames.toString()} 
-            icon="⚽"
-            subtitle={`${userStats.completedGames} completed`}
-          />
-          <StatCard 
-            title="Active Games" 
-            value={userStats.activeGames.toString()} 
-            icon="🏃"
-            subtitle="Currently playing"
-          />
-          <StatCard 
-            title="Games Created" 
-            value={userStats.gamesCreated.toString()} 
-            icon="⚡"
-            subtitle="You organized"
-          />
-          <StatCard 
-            title="Sports" 
-            value={currentSkills.length.toString()} 
-            icon="🏀"
-            subtitle="Skills evaluated"
-          />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-        
-        <TouchableOpacity style={styles.settingButton}>
-          <Text style={styles.settingButtonText}>🔔 Notification Settings</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.settingButton}>
-          <Text style={styles.settingButtonText}>🎨 App Preferences</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.settingButton}>
-          <Text style={styles.settingButtonText}>ℹ️ About SportNS</Text>
+          <Text style={styles.primaryActionArrow}>→</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
+      {/* Notification Settings Button */}
+      <View style={styles.notificationButtonContainer}>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.notificationButtonText}>🔔 Notification Settings</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.signOutContainer}>
         <TouchableOpacity
           style={[styles.signOutButton, isSigningOut && styles.buttonDisabled]}
           onPress={handleSignOut}
@@ -387,11 +292,6 @@ export default function ProfileScreen() {
             <Text style={styles.signOutButtonText}>Sign Out</Text>
           )}
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>SportNS v1.0.0</Text>
-        <Text style={styles.footerText}>Community Sports Platform</Text>
       </View>
       </ScrollView>
 
@@ -481,38 +381,6 @@ export default function ProfileScreen() {
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
-  );
-}
-
-interface InfoRowProps {
-  label: string;
-  value: string;
-}
-
-function InfoRow({ label, value }: InfoRowProps) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
-}
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  icon: string;
-  subtitle?: string;
-}
-
-function StatCard({ title, value, icon, subtitle }: StatCardProps) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statIcon}>{icon}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-      {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
-    </View>
   );
 }
 
@@ -612,140 +480,118 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: Colors.primary,
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
     alignItems: 'center',
-    borderBottomLeftRadius: BorderRadius.xl,
-    borderBottomRightRadius: BorderRadius.xl,
-    ...Shadows.medium,
   },
   avatarContainer: {
-    marginBottom: Spacing.md,
-    ...Shadows.large,
+    marginBottom: Spacing.sm,
   },
   avatar: {
-    width: 120,
-    height: 120,
+    width: 100,
+    height: 100,
     borderRadius: BorderRadius.full,
-    borderWidth: 5,
-    borderColor: Colors.textInverse,
+    borderWidth: 4,
+    borderColor: Colors.border,
   },
   avatarPlaceholder: {
-    backgroundColor: Colors.textInverse,
+    backgroundColor: Colors.backgroundSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarPlaceholderText: {
-    fontSize: Typography.fontSize.huge * 1.2,
+    fontSize: Typography.fontSize.huge,
     fontWeight: Typography.fontWeight.bold,
-    color: Colors.primary,
+    color: Colors.textSecondary,
   },
   username: {
-    fontSize: Typography.fontSize.xxl * 1.1,
+    fontSize: Typography.fontSize.xl,
     fontWeight: Typography.fontWeight.bold,
-    color: Colors.textInverse,
+    color: Colors.text,
     marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   userId: {
     fontSize: Typography.fontSize.sm,
-    color: Colors.textInverse,
-    opacity: 0.9,
+    color: Colors.textSecondary,
     fontWeight: Typography.fontWeight.medium,
+    marginBottom: Spacing.xs,
   },
-  section: {
-    backgroundColor: Colors.surface,
+  changeUsernameButton: {
+    marginTop: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  changeUsernameText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  // Primary Action Button (Re-evaluate Skills)
+  primaryActionContainer: {
     marginTop: Spacing.md,
     marginHorizontal: Spacing.md,
-    padding: Spacing.lg,
+  },
+  primaryActionButton: {
+    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
-    ...Shadows.small,
-  },
-  sectionTitle: {
-    fontSize: Typography.fontSize.lg * 1.05,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text,
-    marginBottom: Spacing.lg,
-    letterSpacing: 0.3,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  infoLabel: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
-    fontWeight: Typography.fontWeight.medium,
-  },
-  infoValue: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.text,
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-    marginTop: Spacing.xs,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: Colors.backgroundSecondary,
     padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.md,
+    ...Shadows.medium,
+  },
+  primaryActionIcon: {
+    fontSize: 32,
+  },
+  primaryActionContent: {
+    flex: 1,
+  },
+  primaryActionTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textInverse,
+    marginBottom: Spacing.xs,
+  },
+  primaryActionSubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textInverse,
+    opacity: 0.9,
+  },
+  primaryActionArrow: {
+    fontSize: Typography.fontSize.xxl,
+    color: Colors.textInverse,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  // Notification Settings Button
+  notificationButtonContainer: {
+    marginTop: Spacing.md,
+    marginHorizontal: Spacing.md,
+  },
+  notificationButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Shadows.small,
-  },
-  statIcon: {
-    fontSize: Typography.fontSize.xxxl * 1.2,
-    marginBottom: Spacing.md,
-  },
-  statValue: {
-    fontSize: Typography.fontSize.xxxl,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
-  },
-  statTitle: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text,
-    textAlign: 'center',
-    fontWeight: Typography.fontWeight.semibold,
-    marginBottom: Spacing.xs,
-  },
-  statSubtitle: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  settingButton: {
-    paddingVertical: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    flexDirection: 'row',
     alignItems: 'center',
   },
-  settingButtonText: {
+  notificationButtonText: {
     fontSize: Typography.fontSize.md,
     color: Colors.text,
     fontWeight: Typography.fontWeight.medium,
+  },
+  signOutContainer: {
+    marginTop: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   signOutButton: {
     backgroundColor: Colors.error,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.medium,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -754,17 +600,6 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
-  },
-  footer: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  footerText: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textTertiary,
-    marginVertical: 2,
-    fontWeight: Typography.fontWeight.medium,
   },
   errorText: {
     fontSize: Typography.fontSize.md,
@@ -788,49 +623,6 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
-  },
-  // Action buttons
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  infoValueLink: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.primary,
-    fontWeight: Typography.fontWeight.medium,
-    textDecorationLine: 'underline',
-  },
-  // Skills display
-  skillsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  skillChip: {
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
-    ...Shadows.small,
-  },
-  skillChipText: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.primaryDark,
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  noSkillsText: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: Spacing.md,
   },
   // Username Modal
   modalOverlay: {
@@ -991,43 +783,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: Spacing.xs,
-  },
-  // Skills Callout Card
-  skillsCalloutCard: {
-    backgroundColor: Colors.primary,
-    marginHorizontal: Spacing.md,
-    marginTop: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    ...Shadows.large,
-  },
-  skillsCalloutHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  skillsCalloutIcon: {
-    fontSize: 40,
-  },
-  skillsCalloutContent: {
-    flex: 1,
-  },
-  skillsCalloutTitle: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.textInverse,
-    marginBottom: Spacing.xs,
-  },
-  skillsCalloutSubtitle: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.textInverse,
-    opacity: 0.9,
-    lineHeight: Typography.fontSize.sm * Typography.lineHeight.relaxed,
-  },
-  skillsCalloutArrow: {
-    fontSize: Typography.fontSize.xxl,
-    color: Colors.textInverse,
-    fontWeight: Typography.fontWeight.bold,
   },
 });
 

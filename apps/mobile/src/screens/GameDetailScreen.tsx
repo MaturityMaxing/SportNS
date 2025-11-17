@@ -14,6 +14,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
@@ -196,21 +197,35 @@ export const GameDetailScreen: React.FC = () => {
   };
 
   const handleEndGame = () => {
-    setEndGameCountdown(5);
-    setShowEndGameModal(true);
+    if (!game) return;
 
-    // Start countdown timer
-    countdownTimerRef.current = setInterval(() => {
-      setEndGameCountdown((prev) => {
-        if (prev <= 1) {
-          if (countdownTimerRef.current) {
-            clearInterval(countdownTimerRef.current);
+    // Check if game has started (scheduled time has passed)
+    const now = new Date();
+    const scheduledTime = new Date(game.scheduled_time);
+    const hasStarted = now >= scheduledTime;
+
+    if (hasStarted) {
+      // Game has started - show immediate confirmation (no countdown)
+      setEndGameCountdown(0);
+      setShowEndGameModal(true);
+    } else {
+      // Game hasn't started yet - use 5 second countdown
+      setEndGameCountdown(5);
+      setShowEndGameModal(true);
+
+      // Start countdown timer
+      countdownTimerRef.current = setInterval(() => {
+        setEndGameCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownTimerRef.current) {
+              clearInterval(countdownTimerRef.current);
+            }
+            return 0; // Button becomes enabled
           }
-          return 0; // Button becomes enabled
-        }
-        return prev - 1;
-      });
-    }, 1000);
+          return prev - 1;
+        });
+      }, 1000);
+    }
   };
 
   const cancelEndGame = () => {
@@ -521,7 +536,7 @@ export const GameDetailScreen: React.FC = () => {
         transparent={false}
         onRequestClose={() => setShowPlayersModal(false)}
       >
-        <View style={styles.playersModalContainer}>
+        <SafeAreaView style={styles.playersModalContainer} edges={['top', 'bottom']}>
           <View style={styles.playersModalHeader}>
             <TouchableOpacity onPress={() => setShowPlayersModal(false)}>
               <Text style={styles.playersModalCloseButton}>✕</Text>
@@ -559,7 +574,7 @@ export const GameDetailScreen: React.FC = () => {
               )}
             </View>
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* End Game Confirmation Modal */}

@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, Alert, Bac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { SportSelector, PlayersAndSkillStep, TimeSelector, Button } from '../components';
-import { Colors, Spacing, Typography } from '../theme';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { getSports, createGameEvent, getUserGameHistory } from '../services/games';
 import { getCurrentUser } from '../services/auth';
 import type { Sport, SkillLevel, TimeType, TimeOfDayOption, GameEventWithDetails } from '../types';
@@ -42,6 +42,21 @@ export const PostGameScreen: React.FC = () => {
   const [skillRestrictionEnabled, setSkillRestrictionEnabled] = useState<boolean>(false);
   const [minSkillLevel, setMinSkillLevel] = useState<SkillLevel>(SKILL_LEVELS[0]);
   const [maxSkillLevel, setMaxSkillLevel] = useState<SkillLevel>(SKILL_LEVELS[4]);
+
+  // Auto-enable skill restriction when user changes from default "all skills" range
+  const handleMinSkillLevelChange = (level: SkillLevel) => {
+    setMinSkillLevel(level);
+    // Enable restriction if not the full range (check with new min and current max)
+    const isFullRange = level === SKILL_LEVELS[0] && maxSkillLevel === SKILL_LEVELS[4];
+    setSkillRestrictionEnabled(!isFullRange);
+  };
+
+  const handleMaxSkillLevelChange = (level: SkillLevel) => {
+    setMaxSkillLevel(level);
+    // Enable restriction if not the full range (check with current min and new max)
+    const isFullRange = minSkillLevel === SKILL_LEVELS[0] && level === SKILL_LEVELS[4];
+    setSkillRestrictionEnabled(!isFullRange);
+  };
   
   // Form data state - Step 3
   const [timeType, setTimeType] = useState<TimeType>('time_of_day');
@@ -98,8 +113,17 @@ export const PostGameScreen: React.FC = () => {
     try {
       setHistoryLoading(true);
       const history = await getUserGameHistory(userId, 5);
+      // Debug: Log skill levels to check if they're being retrieved
+      console.log('Game history loaded:', history.map(game => ({
+        id: game.id,
+        sport: game.sport?.name,
+        skill_level_min: game.skill_level_min,
+        skill_level_max: game.skill_level_max,
+        skill_level_min_type: typeof game.skill_level_min,
+        skill_level_max_type: typeof game.skill_level_max,
+      })));
       setGameHistory(history);
-      setHistoryExpanded(true);
+      // historyExpanded is already set to true when user clicks
     } catch (error) {
       console.error('Error loading history:', error);
       Alert.alert('Error', 'Failed to load previous posts.');
@@ -188,6 +212,15 @@ export const PostGameScreen: React.FC = () => {
         time_label: timeOfDayOption ? TIME_OF_DAY_OPTIONS[timeOfDayOption].label : null,
       };
 
+      // Debug: Log what we're sending
+      console.log('Creating game with data:', {
+        skillRestrictionEnabled,
+        minSkillLevel,
+        maxSkillLevel,
+        skill_level_min: gameData.skill_level_min,
+        skill_level_max: gameData.skill_level_max,
+      });
+
       // Create game event (also auto-joins creator)
       const gameId = await createGameEvent(gameData);
 
@@ -259,6 +292,68 @@ export const PostGameScreen: React.FC = () => {
     );
   };
 
+  // Format time for display in history cards
+  // These are presets/templates, so show the actual time that was set, not relative time
+  const formatHistoryTime = (dateString: string, timeType: TimeType, timeLabel: string | null): string => {
+    if (timeType === 'now') {
+      return 'Now';
+    }
+    
+    if (timeType === 'time_of_day' && timeLabel) {
+      return timeLabel;
+    }
+    
+    // For precise times, show the actual time that was set (e.g., "8:00 AM")
+    if (timeType === 'precise') {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString([], { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    }
+    
+    return timeLabel || timeType;
+  };
+
+  // Check if a game's scheduled time is less than 45 minutes away
+  // For previous posts (presets), calculate when that time would occur next
+  const isTimeTooClose = (dateString: string, timeType: TimeType): boolean => {
+    if (timeType === 'now') {
+      return true; // "Now" is always too close
+    }
+    
+    const now = new Date();
+    const originalDate = new Date(dateString);
+    
+    if (timeType === 'precise') {
+      // For precise times, calculate when this time would occur next (today or tomorrow)
+      const nextOccurrence = new Date(now);
+      nextOccurrence.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
+      
+      // If that time has passed today, set it for tomorrow
+      if (nextOccurrence <= now) {
+        nextOccurrence.setDate(nextOccurrence.getDate() + 1);
+      }
+      
+      const diffInMinutes = (nextOccurrence.getTime() - now.getTime()) / (1000 * 60);
+      return diffInMinutes < 45;
+    }
+    
+    // For time_of_day, check if the scheduled_time (when it would occur next) is less than 45 minutes away
+    // We'll use the original scheduled_time and check if it's in the past, then calculate next occurrence
+    const nextOccurrence = new Date(originalDate);
+    if (nextOccurrence <= now) {
+      // If the original time was in the past, we can't easily determine the next occurrence
+      // without knowing the time_of_day option, so we'll be conservative and allow it
+      // (The user can still reuse it, and the TimeSelector will handle the validation)
+      return false;
+    }
+    
+    const diffInMinutes = (nextOccurrence.getTime() - now.getTime()) / (1000 * 60);
+    return diffInMinutes < 45;
+  };
+
   // Render history section
   const renderHistory = () => {
     if (currentStep !== 1 || loading) return null;
@@ -271,10 +366,10 @@ export const PostGameScreen: React.FC = () => {
             if (historyExpanded) {
               setHistoryExpanded(false);
             } else {
+              // Expand immediately to show loading spinner
+              setHistoryExpanded(true);
               if (gameHistory.length === 0) {
                 loadHistory();
-              } else {
-                setHistoryExpanded(true);
               }
             }
           }}
@@ -290,31 +385,103 @@ export const PostGameScreen: React.FC = () => {
         {historyExpanded && (
           <View style={styles.historyContent}>
             {historyLoading ? (
-              <ActivityIndicator size="small" color={Colors.primary} style={styles.historyLoader} />
+              <View style={styles.historyLoaderContainer}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.historyLoaderText}>Loading previous posts...</Text>
+              </View>
             ) : gameHistory.length === 0 ? (
               <Text style={styles.historyEmpty}>No previous posts found.</Text>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScroll}>
-                {gameHistory.map((game) => (
-                  <TouchableOpacity
-                    key={game.id}
-                    style={styles.historyCard}
-                    onPress={() => handlePrefillFromHistory(game)}
-                  >
-                    <Text style={styles.historyCardSport}>{game.sport?.name}</Text>
-                    <Text style={styles.historyCardDetail}>
-                      {game.min_players}-{game.max_players} players
-                    </Text>
-                    {game.skill_level_min && game.skill_level_max && (
-                      <Text style={styles.historyCardDetail}>
-                        {SKILL_LEVEL_LABELS[game.skill_level_min]} - {SKILL_LEVEL_LABELS[game.skill_level_max]}
-                      </Text>
-                    )}
-                    <Text style={styles.historyCardTime}>
-                      {game.time_type === 'now' ? 'Now' : game.time_label || game.time_type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {gameHistory.map((game) => {
+                  const tooClose = isTimeTooClose(game.scheduled_time, game.time_type);
+                  return (
+                    <TouchableOpacity
+                      key={game.id}
+                      style={[
+                        styles.historyCard,
+                        tooClose && styles.historyCardDisabled
+                      ]}
+                      onPress={() => handlePrefillFromHistory(game)}
+                      disabled={tooClose}
+                    >
+                      <View style={styles.historyCardHeader}>
+                        <Text style={[
+                          styles.historyCardIcon,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>{game.sport?.icon || '🏃'}</Text>
+                        <Text style={[
+                          styles.historyCardSport,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>{game.sport?.name}</Text>
+                      </View>
+                      <View style={styles.historyCardDivider} />
+                      <View style={styles.historyCardDetail}>
+                        <Text style={[
+                          styles.historyCardLabel,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>👥 Players:</Text>
+                        <Text style={[
+                          styles.historyCardValue,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>
+                          {game.min_players}-{game.max_players}
+                        </Text>
+                      </View>
+                      <View style={styles.historyCardDetail}>
+                        <Text style={[
+                          styles.historyCardLabel,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>📊 Skill:</Text>
+                        <Text style={[
+                          styles.historyCardValue,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>
+                          {(() => {
+                            // Debug: Log the actual values
+                            console.log('Rendering skill for game:', game.id, {
+                              skill_level_min: game.skill_level_min,
+                              skill_level_max: game.skill_level_max,
+                              min_label: game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min as SkillLevel] : null,
+                              max_label: game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max as SkillLevel] : null,
+                            });
+                            
+                            if (game.skill_level_min || game.skill_level_max) {
+                              const minLabel = game.skill_level_min 
+                                ? SKILL_LEVEL_LABELS[game.skill_level_min as SkillLevel] 
+                                : 'Any';
+                              const maxLabel = game.skill_level_max 
+                                ? SKILL_LEVEL_LABELS[game.skill_level_max as SkillLevel] 
+                                : 'Any';
+                              return `${minLabel} - ${maxLabel}`;
+                            }
+                            return 'Any';
+                          })()}
+                        </Text>
+                      </View>
+                      <View style={styles.historyCardDetail}>
+                        <Text style={[
+                          styles.historyCardLabel,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>⏰ Time:</Text>
+                        <Text style={[
+                          styles.historyCardValue,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>
+                          {formatHistoryTime(game.scheduled_time, game.time_type, game.time_label)}
+                        </Text>
+                      </View>
+                      <View style={styles.historyCardFooter}>
+                        <Text style={[
+                          styles.historyCardAction,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>
+                          {tooClose ? 'Too soon to reuse' : 'Tap to reuse →'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             )}
           </View>
@@ -410,12 +577,10 @@ export const PostGameScreen: React.FC = () => {
             maxPlayers={maxPlayers}
             onMinPlayersChange={setMinPlayers}
             onMaxPlayersChange={setMaxPlayers}
-            skillRestrictionEnabled={skillRestrictionEnabled}
             minSkillLevel={minSkillLevel}
             maxSkillLevel={maxSkillLevel}
-            onSkillRestrictionChange={setSkillRestrictionEnabled}
-            onMinSkillLevelChange={setMinSkillLevel}
-            onMaxSkillLevelChange={setMaxSkillLevel}
+            onMinSkillLevelChange={handleMinSkillLevelChange}
+            onMaxSkillLevelChange={handleMaxSkillLevelChange}
             absoluteMinPlayers={2}
             absoluteMaxPlayers={20}
           />
@@ -619,8 +784,16 @@ const styles = StyleSheet.create({
   historyContent: {
     paddingBottom: Spacing.md,
   },
-  historyLoader: {
+  historyLoaderContainer: {
     paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  historyLoaderText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
   },
   historyEmpty: {
     fontSize: Typography.fontSize.sm,
@@ -632,29 +805,68 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.md,
   },
   historyCard: {
-    backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginRight: Spacing.sm,
-    width: 150,
-    borderWidth: 1,
+    width: 180,
+    borderWidth: 2,
     borderColor: Colors.border,
+    ...Shadows.small,
+  },
+  historyCardDisabled: {
+    opacity: 0.5,
+    backgroundColor: Colors.backgroundTertiary,
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  historyCardIcon: {
+    fontSize: 24,
   },
   historyCardSport: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
-    marginBottom: Spacing.xs,
+    flex: 1,
+  },
+  historyCardDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginBottom: Spacing.sm,
   },
   historyCardDetail: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.textSecondary,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.xs,
   },
-  historyCardTime: {
+  historyCardLabel: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  historyCardValue: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.text,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  historyCardFooter: {
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  historyCardAction: {
     fontSize: Typography.fontSize.xs,
     color: Colors.primary,
-    fontWeight: Typography.fontWeight.semibold,
-    marginTop: Spacing.xs,
+    fontWeight: Typography.fontWeight.bold,
+    textAlign: 'center',
+  },
+  historyCardTextDisabled: {
+    opacity: 0.6,
   },
 });

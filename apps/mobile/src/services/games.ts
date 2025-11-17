@@ -258,21 +258,33 @@ export interface CreateGameEventParams {
 
 export const createGameEvent = async (params: CreateGameEventParams): Promise<string> => {
   try {
+    // Debug: Log what we're inserting
+    console.log('createGameEvent called with:', {
+      skill_level_min: params.skill_level_min,
+      skill_level_max: params.skill_level_max,
+      skill_level_min_type: typeof params.skill_level_min,
+      skill_level_max_type: typeof params.skill_level_max,
+    });
+
     // 1. Insert game event
+    const insertData = {
+      sport_id: params.sport_id,
+      creator_id: params.creator_id,
+      min_players: params.min_players,
+      max_players: params.max_players,
+      skill_level_min: params.skill_level_min,
+      skill_level_max: params.skill_level_max,
+      scheduled_time: params.scheduled_time.toISOString(),
+      time_type: params.time_type,
+      time_label: params.time_label,
+      status: 'waiting',
+    };
+
+    console.log('Inserting to database:', insertData);
+
     const { data: gameData, error: gameError } = await supabase
       .from('game_events')
-      .insert({
-        sport_id: params.sport_id,
-        creator_id: params.creator_id,
-        min_players: params.min_players,
-        max_players: params.max_players,
-        skill_level_min: params.skill_level_min,
-        skill_level_max: params.skill_level_max,
-        scheduled_time: params.scheduled_time.toISOString(),
-        time_type: params.time_type,
-        time_label: params.time_label,
-        status: 'waiting',
-      })
+      .insert(insertData)
       .select('id')
       .single();
 
