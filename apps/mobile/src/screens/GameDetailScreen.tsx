@@ -14,7 +14,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
@@ -46,6 +46,7 @@ export const GameDetailScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<GameDetailRouteParams, 'GameDetail'>>();
   const { gameId } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [game, setGame] = useState<GameEventWithDetails | null>(null);
   const [messages, setMessages] = useState<GameChatMessageWithSender[]>([]);
@@ -537,7 +538,7 @@ export const GameDetailScreen: React.FC = () => {
         onRequestClose={() => setShowPlayersModal(false)}
       >
         <SafeAreaView style={styles.playersModalContainer} edges={['top', 'bottom']}>
-          <View style={styles.playersModalHeader}>
+          <View style={[styles.playersModalHeader, { paddingTop: Math.max(insets.top + Spacing.md, Spacing.md * 2) }]}>
             <TouchableOpacity onPress={() => setShowPlayersModal(false)}>
               <Text style={styles.playersModalCloseButton}>✕</Text>
             </TouchableOpacity>

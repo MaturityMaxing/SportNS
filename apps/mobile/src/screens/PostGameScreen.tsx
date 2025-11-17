@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, Alert, BackHandler, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { SportSelector, PlayersAndSkillStep, TimeSelector, Button } from '../components';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
@@ -19,6 +19,7 @@ import { SKILL_LEVELS, TIME_OF_DAY_OPTIONS, SKILL_LEVEL_LABELS } from '../types'
  */
 export const PostGameScreen: React.FC = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   // State for form steps
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -606,7 +607,7 @@ export const PostGameScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header with step indicator */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + Spacing.md, Spacing.md * 2) }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
