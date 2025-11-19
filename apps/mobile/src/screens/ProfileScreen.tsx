@@ -11,15 +11,12 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Slider from '@react-native-community/slider';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { getCurrentUser, getProfile, signOut, updateUsername, getSkillLevels, saveSkillLevels, getSports } from '../services/auth';
-import type { Profile, Sport, SkillLevel } from '../types';
-import { SKILL_LEVEL_LABELS, SKILL_LEVEL_DESCRIPTIONS, SKILL_LEVELS } from '../types';
+import { getCurrentUser, getProfile, signOut, updateUsername } from '../services/auth';
+import type { Profile } from '../types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { Button } from '../components';
+import { Button, TopNav } from '../components';
 
 /**
  * ProfileScreen - Display user profile and logout
@@ -34,12 +31,6 @@ export default function ProfileScreen() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [isUpdatingUsername, setIsUpdatingUsername] = useState(false);
-  
-  // Skill re-evaluation states
-  const [showSkillsModal, setShowSkillsModal] = useState(false);
-  const [sports, setSports] = useState<Sport[]>([]);
-  const [skillSelections, setSkillSelections] = useState<Record<number, SkillLevel | null>>({});
-  const [isUpdatingSkills, setIsUpdatingSkills] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -122,108 +113,65 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleReEvaluateSkills = async () => {
-    if (!profile) return;
-
-    try {
-      // Load sports and current skills
-      const [sportsData, skillsData] = await Promise.all([
-        getSports(),
-        getSkillLevels(profile.id),
-      ]);
-
-      setSports(sportsData);
-
-      // Initialize skill selections with current values
-      const initialSelections: Record<number, SkillLevel | null> = {};
-      sportsData.forEach((sport) => {
-        const existingSkill = skillsData.find(s => s.sport_id === sport.id);
-        initialSelections[sport.id] = existingSkill?.skill_level || null;
-      });
-      setSkillSelections(initialSelections);
-
-      setShowSkillsModal(true);
-    } catch (error) {
-      console.error('Error loading skills:', error);
-      Alert.alert('Error', 'Failed to load skills');
-    }
-  };
-
-  const handleSkillChange = (sportId: number, value: number) => {
-    const skillLevel = SKILL_LEVELS[value];
-    setSkillSelections((prev) => ({
-      ...prev,
-      [sportId]: skillLevel,
-    }));
-  };
-
-  const getSliderValue = (sportId: number): number => {
-    const skill = skillSelections[sportId];
-    if (!skill) return -1;
-    return SKILL_LEVELS.indexOf(skill);
-  };
-
-  const handleSaveSkills = async () => {
-    if (!profile) return;
-
-    const selectedSkills = Object.entries(skillSelections)
-      .filter(([_, level]) => level !== null)
-      .map(([sportId, level]) => ({
-        sport_id: parseInt(sportId),
-        skill_level: level as SkillLevel,
-      }));
-
-    if (selectedSkills.length === 0) {
-      Alert.alert('Error', 'Please evaluate at least one sport');
-      return;
-    }
-
-    setIsUpdatingSkills(true);
-    try {
-      await saveSkillLevels(profile.id, selectedSkills);
-      setShowSkillsModal(false);
-      Alert.alert('Success', 'Skills updated successfully!');
-    } catch (error) {
-      console.error('Error updating skills:', error);
-      Alert.alert('Error', 'Failed to update skills');
-    } finally {
-      setIsUpdatingSkills(false);
-    }
+  const handleReEvaluateSkills = () => {
+    navigation.navigate('ReEvaluateSkills' as never);
   };
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={styles.container}>
+        <TopNav
+          title="Profile"
+          centered
+          leftAction={{
+            icon: '←',
+            onPress: () => navigation.goBack(),
+          }}
+        />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
       </View>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Profile not found</Text>
-        <Text style={styles.errorSubtext}>
-          Your profile is being created. Please wait a moment.
-        </Text>
-        <TouchableOpacity 
-          style={styles.retryButton} 
-          onPress={loadProfile}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <TopNav
+          title="Profile"
+          centered
+          leftAction={{
+            icon: '←',
+            onPress: () => navigation.goBack(),
+          }}
+        />
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Profile not found</Text>
+          <Text style={styles.errorSubtext}>
+            Your profile is being created. Please wait a moment.
+          </Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={loadProfile}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Back Button */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <TopNav
+        title="Profile"
+        centered
+        leftAction={{
+          icon: '←',
+          onPress: () => navigation.goBack(),
+        }}
+      />
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -274,6 +222,7 @@ export default function ProfileScreen() {
       <View style={styles.notificationButtonContainer}>
         <TouchableOpacity 
           style={styles.notificationButton}
+          onPress={() => navigation.navigate('NotificationSettings' as never)}
           activeOpacity={0.7}
         >
           <Text style={styles.notificationButtonText}>🔔 Notification Settings</Text>
@@ -338,137 +287,15 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Skills Re-evaluation Modal */}
-      <Modal
-        visible={showSkillsModal}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setShowSkillsModal(false)}
-      >
-        <SafeAreaView style={styles.modalFullScreen}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowSkillsModal(false)}>
-              <Text style={styles.modalCloseButton}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Re-evaluate Your Skills</Text>
-            <View style={{ width: 30 }} />
-          </View>
-
-          <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={true}>
-            <Text style={styles.modalDescription}>
-              Update your skill levels for each sport. Your evaluations help match you with appropriate games.
-            </Text>
-
-            {sports.map((sport) => (
-              <SkillEvaluationCard
-                key={sport.id}
-                sport={sport}
-                value={getSliderValue(sport.id)}
-                onChange={(value) => handleSkillChange(sport.id, value)}
-              />
-            ))}
-
-            <Button
-              title="Save Changes"
-              onPress={handleSaveSkills}
-              loading={isUpdatingSkills}
-              disabled={isUpdatingSkills}
-              fullWidth
-              size="large"
-              style={styles.modalSaveButton}
-            />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
-  );
-}
-
-interface SkillEvaluationCardProps {
-  sport: Sport;
-  value: number;
-  onChange: (value: number) => void;
-}
-
-function SkillEvaluationCard({ sport, value, onChange }: SkillEvaluationCardProps) {
-  const hasSelection = value >= 0;
-  const currentSkill = hasSelection ? SKILL_LEVELS[value] : null;
-
-  return (
-    <View style={[styles.sportCard, hasSelection && styles.sportCardSelected]}>
-      <View style={styles.sportHeader}>
-        <View style={styles.sportTitleRow}>
-          <Text style={styles.sportIcon}>{sport.icon || '🏃'}</Text>
-          <Text style={styles.sportName}>{sport.name}</Text>
-        </View>
-        {currentSkill && (
-          <View style={styles.skillBadge}>
-            <Text style={styles.skillBadgeText}>{SKILL_LEVEL_LABELS[currentSkill]}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.sliderContainer}>
-        <Slider
-          style={styles.slider}
-          minimumValue={0}
-          maximumValue={4}
-          step={1}
-          value={hasSelection ? value : 0}
-          onValueChange={onChange}
-          minimumTrackTintColor={Colors.primary}
-          maximumTrackTintColor={Colors.border}
-          thumbTintColor={hasSelection ? Colors.primary : Colors.textTertiary}
-        />
-      </View>
-
-      <View style={styles.labelsContainer}>
-        {SKILL_LEVELS.map((level, index) => (
-          <TouchableOpacity
-            key={level}
-            onPress={() => onChange(index)}
-            style={styles.labelButton}
-          >
-            <Text
-              style={[
-                styles.labelText,
-                value === index && styles.labelTextActive,
-              ]}
-            >
-              {SKILL_LEVEL_LABELS[level]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {currentSkill && (
-        <Text style={styles.skillDescription}>
-          {SKILL_LEVEL_DESCRIPTIONS[currentSkill]}
-        </Text>
-      )}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  topBar: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  backButton: {
-    paddingVertical: Spacing.xs,
-  },
-  backButtonText: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.primary,
-    fontWeight: Typography.fontWeight.semibold,
   },
   scrollView: {
     flex: 1,
@@ -667,122 +494,6 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-  },
-  // Skills Modal (Full Screen)
-  modalFullScreen: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  modalHeaderTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text,
-  },
-  modalCloseButton: {
-    fontSize: Typography.fontSize.xxxl,
-    color: Colors.textSecondary,
-    width: 30,
-    textAlign: 'center',
-  },
-  modalScrollView: {
-    flex: 1,
-    padding: Spacing.md,
-  },
-  modalDescription: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
-    lineHeight: Typography.fontSize.md * Typography.lineHeight.relaxed,
-  },
-  modalSaveButton: {
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xxl,
-    ...Shadows.medium,
-  },
-  // Sport Card (for skill evaluation)
-  sportCard: {
-    backgroundColor: Colors.backgroundSecondary,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    marginBottom: Spacing.md,
-  },
-  sportCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
-    ...Shadows.small,
-  },
-  sportHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  sportTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  sportIcon: {
-    fontSize: 28,
-  },
-  sportName: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text,
-  },
-  skillBadge: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-  },
-  skillBadgeText: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.textInverse,
-  },
-  sliderContainer: {
-    marginVertical: Spacing.sm,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  labelsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
-  },
-  labelButton: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  labelText: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-  },
-  labelTextActive: {
-    color: Colors.primary,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  skillDescription: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: Spacing.xs,
   },
 });
 

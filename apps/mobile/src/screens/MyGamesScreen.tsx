@@ -11,7 +11,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
-import { getUserGames, subscribeToGameUpdates, unsubscribeFromGameUpdates } from '../services/games';
+import { getUserGames, subscribeToGameUpdates, unsubscribeFromGameUpdates, triggerAutoEndOldGames } from '../services/games';
 import { getCurrentUser, getProfile } from '../services/auth';
 import type { GameEventWithDetails, Profile } from '../types';
 import { SKILL_LEVEL_LABELS } from '../types';
@@ -51,6 +51,8 @@ export const MyGamesScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       if (currentUserId) {
+        // Trigger auto-end for old games when screen comes into focus
+        triggerAutoEndOldGames();
         loadGames(currentUserId);
       }
     }, [currentUserId])
@@ -69,6 +71,11 @@ export const MyGamesScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
+      
+      // Trigger auto-end for old games (fallback if cron isn't running)
+      // This runs in the background and doesn't block the UI
+      triggerAutoEndOldGames();
+      
       const user = await getCurrentUser();
       
       if (user) {
@@ -152,8 +159,26 @@ export const MyGamesScreen: React.FC = () => {
       return `In ${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''}`;
     }
 
-    if (diffInHours < 24) {
-      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    // Check if it's today (same calendar day)
+    const isToday = date.getFullYear() === now.getFullYear() &&
+                     date.getMonth() === now.getMonth() &&
+                     date.getDate() === now.getDate();
+    
+    // Check if it's tomorrow (next calendar day)
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.getFullYear() === tomorrow.getFullYear() &&
+                        date.getMonth() === tomorrow.getMonth() &&
+                        date.getDate() === tomorrow.getDate();
+
+    const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+      return `Today at ${timeString}`;
+    }
+
+    if (isTomorrow) {
+      return `Tomorrow at ${timeString}`;
     }
 
     return date.toLocaleDateString([], { 
@@ -282,7 +307,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, formatTime }) => {
                   const isConfirmed = current >= min;
                   
                   if (isConfirmed) {
-                    return `${current}/${max} ✓ Confirmed`;
+                    return `${current}/${max}`;
                   } else {
                     const needed = min - current;
                     return `${current}/${max} (needs ${needed} more)`;

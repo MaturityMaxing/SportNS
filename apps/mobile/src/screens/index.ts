@@ -8,4 +8,7 @@ export { HomeScreen } from './HomeScreen';
 export { UsernameScreen } from './UsernameScreen';
 export { OnboardingScreen } from './OnboardingScreen';
 export { PostGameScreen } from './PostGameScreen';
+export { default as NotificationSettingsScreen } from './NotificationSettingsScreen';
+export { ReEvaluateSkillsScreen } from './ReEvaluateSkillsScreen';
+export { PlayersListScreen } from './PlayersListScreen';
 

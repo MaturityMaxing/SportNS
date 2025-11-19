@@ -18,9 +18,14 @@ import {
   hasJoinedGame,
   subscribeToGameUpdates,
   unsubscribeFromGameUpdates,
+  triggerAutoEndOldGames,
 } from '../services/games';
 import { getCurrentUser, getProfile, getSkillLevels } from '../services/auth';
 import { getSports } from '../services/auth';
+import {
+  getNotificationSettings,
+  scheduleLocalNotification,
+} from '../services/notifications';
 import type { GameEventWithDetails, Sport, Profile, PlayerSkillLevel } from '../types';
 import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from '../types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -64,6 +69,8 @@ export const DashboardScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       if (currentUserId) {
+        // Trigger auto-end for old games when screen comes into focus
+        triggerAutoEndOldGames();
         loadGames();
       }
     }, [currentUserId])
@@ -78,6 +85,11 @@ export const DashboardScreen: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
+      
+      // Trigger auto-end for old games (fallback if cron isn't running)
+      // This runs in the background and doesn't block the UI
+      triggerAutoEndOldGames();
+      
       const user = await getCurrentUser();
       
       if (user) {
@@ -170,6 +182,66 @@ export const DashboardScreen: React.FC = () => {
       await joinGame(gameId, currentUserId);
       Alert.alert('Success', 'You have joined the game!');
       await loadGames();
+
+      // Schedule game reminders
+      try {
+        console.log('⏰ Scheduling game reminders...');
+        const settings = await getNotificationSettings(currentUserId);
+        console.log('⚙️ Notification settings:', settings);
+        
+        const game = games.find(g => g.id === gameId);
+        if (game) {
+          const scheduledTime = new Date(game.scheduled_time);
+          const now = new Date();
+          const sportName = game.sport?.name || 'game';
+          
+          console.log('🕐 Game time:', scheduledTime.toLocaleString());
+          console.log('🕐 Current time:', now.toLocaleString());
+
+          // Schedule 30-minute reminder
+          if (settings?.notify_30min_before_game) {
+            const notifyTime = new Date(scheduledTime.getTime() - 30 * 60 * 1000);
+            const secondsUntil = (notifyTime.getTime() - now.getTime()) / 1000;
+            console.log('⏰ 30min reminder in', secondsUntil, 'seconds');
+            
+            if (secondsUntil > 0) {
+              await scheduleLocalNotification(
+                'Game Reminder',
+                `Your ${sportName} game starts in 30 minutes`,
+                { type: 'game_reminder', game_id: gameId, minutes_until: 30 },
+                secondsUntil
+              );
+            } else {
+              console.log('⏰ 30min reminder time already passed');
+            }
+          } else {
+            console.log('🔕 30min reminders disabled');
+          }
+
+          // Schedule 5-minute reminder
+          if (settings?.notify_5min_before_game) {
+            const notifyTime = new Date(scheduledTime.getTime() - 5 * 60 * 1000);
+            const secondsUntil = (notifyTime.getTime() - now.getTime()) / 1000;
+            console.log('⏰ 5min reminder in', secondsUntil, 'seconds');
+            
+            if (secondsUntil > 0) {
+              await scheduleLocalNotification(
+                'Game Reminder',
+                `Your ${sportName} game starts in 5 minutes`,
+                { type: 'game_reminder', game_id: gameId, minutes_until: 5 },
+                secondsUntil
+              );
+            } else {
+              console.log('⏰ 5min reminder time already passed');
+            }
+          } else {
+            console.log('🔕 5min reminders disabled');
+          }
+        }
+      } catch (notifError) {
+        console.error('❌ Failed to schedule game reminders:', notifError);
+        // Don't show error to user - reminders are optional
+      }
     } catch (error) {
       console.error('Error joining game:', error);
       Alert.alert('Error', 'Failed to join game. The game might be full.');
@@ -216,8 +288,26 @@ export const DashboardScreen: React.FC = () => {
       return `In ${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''}`;
     }
 
-    if (diffInHours < 24) {
-      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    // Check if it's today (same calendar day)
+    const isToday = date.getFullYear() === now.getFullYear() &&
+                     date.getMonth() === now.getMonth() &&
+                     date.getDate() === now.getDate();
+    
+    // Check if it's tomorrow (next calendar day)
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.getFullYear() === tomorrow.getFullYear() &&
+                        date.getMonth() === tomorrow.getMonth() &&
+                        date.getDate() === tomorrow.getDate();
+
+    const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+      return `Today at ${timeString}`;
+    }
+
+    if (isTomorrow) {
+      return `Tomorrow at ${timeString}`;
     }
 
     return date.toLocaleDateString([], { 

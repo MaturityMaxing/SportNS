@@ -61,10 +61,12 @@
         }
       ]
     ],
-    "extra": {
-      "eas": {
-        "projectId": "your-project-id-here"
-      }
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#ffffff",
+      "iosDisplayInForeground": true,
+      "androidMode": "default",
+      "androidCollapsedTitle": "#{unread_notifications} new interactions"
     }
   }
 }

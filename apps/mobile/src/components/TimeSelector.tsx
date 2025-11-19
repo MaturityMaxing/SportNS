@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../theme';
@@ -30,6 +30,8 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   const [sliderValue, setSliderValue] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [initialized, setInitialized] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
+  const lastSelectedDayRef = useRef<'today' | 'tomorrow'>('today');
 
   // Update current time every 30 seconds to keep slider accurate
   React.useEffect(() => {
@@ -43,27 +45,50 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
   // Calculate time range for precise mode (45 minutes from now to 11 PM, rounded to nearest 15-min mark)
   const now = currentTime;
   
-  // Round up to next 15-minute mark after adding 45 minutes
-  const minTimeRaw = new Date(now.getTime() + 45 * 60 * 1000);
-  const minTime = new Date(minTimeRaw);
-  const minutes = minTime.getMinutes();
-  const roundedMinutes = Math.ceil(minutes / 15) * 15;
-  minTime.setMinutes(roundedMinutes, 0, 0);
+  // Memoize baseDate and minTime to prevent infinite loops
+  // Use a stable key based on the date (not the time) to prevent unnecessary recalculations
+  const dateKey = useMemo(() => {
+    return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  }, [now.getFullYear(), now.getMonth(), now.getDate()]);
   
-  // If rounding pushed us to next hour
-  if (roundedMinutes >= 60) {
-    minTime.setHours(minTime.getHours() + 1, 0, 0, 0);
-  }
+  const baseDate = useMemo(() => {
+    return selectedDay === 'tomorrow' 
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0)
+      : new Date(now);
+  }, [selectedDay, dateKey]);
   
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 0, 0, 0); // 11 PM
+  // For today: Round up to next 15-minute mark after adding 45 minutes
+  // For tomorrow: Start from 6 AM (earliest reasonable time)
+  const minTime = useMemo(() => {
+    if (selectedDay === 'today') {
+      const minTimeRaw = new Date(now.getTime() + 45 * 60 * 1000);
+      const calculated = new Date(minTimeRaw);
+      const minutes = calculated.getMinutes();
+      const roundedMinutes = Math.ceil(minutes / 15) * 15;
+      calculated.setMinutes(roundedMinutes, 0, 0);
+      
+      // If rounding pushed us to next hour
+      if (roundedMinutes >= 60) {
+        calculated.setHours(calculated.getHours() + 1, 0, 0, 0);
+      }
+      return calculated;
+    } else {
+      // Tomorrow: start from 6 AM
+      const tomorrow = new Date(baseDate);
+      tomorrow.setHours(6, 0, 0, 0);
+      return tomorrow;
+    }
+  }, [selectedDay, now, baseDate]);
   
-  // If end of day is before min time, set end of day to tomorrow at 11 PM
-  if (endOfDay <= minTime) {
-    endOfDay.setDate(endOfDay.getDate() + 1);
-  }
+  const endOfDay = useMemo(() => {
+    const end = new Date(baseDate);
+    end.setHours(23, 0, 0, 0); // 11 PM
+    return end;
+  }, [baseDate]);
   
-  const maxMinutesFromMin = Math.floor((endOfDay.getTime() - minTime.getTime()) / (1000 * 60));
+  const maxMinutesFromMin = useMemo(() => {
+    return Math.floor((endOfDay.getTime() - minTime.getTime()) / (1000 * 60));
+  }, [endOfDay, minTime]);
   
   // Initialize with minTime on first load when in precise mode
   React.useEffect(() => {
@@ -72,7 +97,29 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
       onTimeChange(minTime);
       setInitialized(true);
     }
-  }, [timeType, initialized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeType, initialized]); // minTime is memoized, safe to use
+  
+  // Reset and update time when day changes
+  React.useEffect(() => {
+    // Only update if the day actually changed
+    if (lastSelectedDayRef.current === selectedDay) {
+      return;
+    }
+    lastSelectedDayRef.current = selectedDay;
+    
+    if (timeType === 'precise' && initialized) {
+      setSliderValue(0);
+      onTimeChange(minTime);
+    } else if (timeType === 'time_of_day' && timeOfDayOption) {
+      // Update time of day option to reflect new day
+      const { hour } = TIME_OF_DAY_OPTIONS[timeOfDayOption];
+      const optionTime = new Date(baseDate);
+      optionTime.setHours(hour, 0, 0, 0);
+      onTimeChange(optionTime);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDay]); // minTime and baseDate are memoized, safe to use
   
   // Auto-update selected time if it's too close to now
   React.useEffect(() => {
@@ -120,11 +167,28 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
     const diffMs = selectedTime.getTime() - now.getTime();
     const totalMinutes = Math.floor(diffMs / (1000 * 60));
     
+    if (selectedDay === 'tomorrow') {
+      const hours = Math.floor(totalMinutes / 60);
+      if (hours < 24) return `Tomorrow, ${formatTime(selectedTime)}`;
+      return `Tomorrow, ${formatTime(selectedTime)}`;
+    }
+    
     if (totalMinutes < 60) return `In ${totalMinutes} minutes`;
     const hours = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
     if (mins === 0) return `In ${hours} hour${hours > 1 ? 's' : ''}`;
     return `In ${hours}h ${mins}m`;
+  };
+  
+  const formatDayLabel = (): string => {
+    if (selectedDay === 'tomorrow') {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return `Tomorrow (${days[tomorrow.getDay()]})`;
+    }
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return `Today (${days[now.getDay()]})`;
   };
 
   return (
@@ -135,6 +199,26 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
     >
       <Text style={styles.title}>When to Play?</Text>
       <Text style={styles.subtitle}>Choose when the game should start</Text>
+
+      {/* Day Selector */}
+      <View style={styles.daySelector}>
+        <TouchableOpacity
+          style={[styles.dayButton, selectedDay === 'today' && styles.dayButtonActive]}
+          onPress={() => setSelectedDay('today')}
+        >
+          <Text style={[styles.dayButtonText, selectedDay === 'today' && styles.dayButtonTextActive]}>
+            📅 Today
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.dayButton, selectedDay === 'tomorrow' && styles.dayButtonActive]}
+          onPress={() => setSelectedDay('tomorrow')}
+        >
+          <Text style={[styles.dayButtonText, selectedDay === 'tomorrow' && styles.dayButtonTextActive]}>
+            📅 Tomorrow
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Time Mode Selector */}
       <View style={styles.modeSelector}>
@@ -171,22 +255,23 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
         {/* TIME OF DAY Mode */}
         {timeType === 'time_of_day' && (
           <View style={styles.timeOfDayContainer}>
-            {(Object.keys(TIME_OF_DAY_OPTIONS) as TimeOfDayOption[]).map((option) => {
+            {(Object.keys(TIME_OF_DAY_OPTIONS) as TimeOfDayOption[])
+              .filter(option => {
+                // Filter out "tomorrow_morning" if we have a day selector
+                return option !== 'tomorrow_morning';
+              })
+              .map((option) => {
               const { label, hour } = TIME_OF_DAY_OPTIONS[option];
               const isSelected = timeOfDayOption === option;
-              const optionTime = new Date();
+              const optionTime = new Date(baseDate);
+              optionTime.setHours(hour, 0, 0, 0);
               
-              // Handle "tomorrow morning" case
-              if (option === 'tomorrow_morning') {
-                optionTime.setDate(optionTime.getDate() + 1);
-                optionTime.setHours(hour, 0, 0, 0);
-              } else {
-                optionTime.setHours(hour, 0, 0, 0);
-              }
-              
-              // Check if this time is at least 45 minutes from now
-              const minAllowedTime = new Date(now.getTime() + 45 * 60 * 1000);
-              const isDisabled = optionTime < minAllowedTime;
+              // For today, check if this time is at least 45 minutes from now
+              // For tomorrow, all times are valid
+              const minAllowedTime = selectedDay === 'today' 
+                ? new Date(now.getTime() + 45 * 60 * 1000)
+                : new Date(0); // Very early date, so nothing is disabled
+              const isDisabled = selectedDay === 'today' && optionTime < minAllowedTime;
 
               return (
                 <TouchableOpacity
@@ -209,7 +294,8 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                     isSelected && styles.timeOfDayLabelActive,
                     isDisabled && styles.timeOfDayLabelDisabled
                   ]}>
-                    {label} {isDisabled && '(too soon)'}
+                    {label}
+                    {/* {isDisabled && '(too soon)'} */}
                   </Text>
                   <Text style={[
                     styles.timeOfDayTime, 
@@ -229,8 +315,9 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
           <View style={styles.preciseContainer}>
             <View style={styles.preciseDisplay}>
               <Text style={styles.preciseLabel}>Selected Time</Text>
+              <Text style={styles.preciseDay}>{formatDayLabel()}</Text>
               <Text style={styles.preciseTime}>
-                {selectedTime ? formatTime(selectedTime) : formatTime(now)}
+                {selectedTime ? formatTime(selectedTime) : formatTime(minTime)}
               </Text>
               <Text style={styles.preciseRelative}>
                 {formatRelativeTime(Math.round(sliderValue))}
@@ -250,7 +337,9 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                 step={15} // 15-minute intervals
               />
               <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabel}>{formatTime(minTime)}</Text>
+                <Text style={styles.sliderLabel}>
+                  {selectedDay === 'tomorrow' ? '6:00 AM' : formatTime(minTime)}
+                </Text>
                 <Text style={styles.sliderLabel}>11:00 PM</Text>
               </View>
             </View>
@@ -323,6 +412,36 @@ const styles = StyleSheet.create({
   },
   modeTextActive: {
     color: Colors.textInverse,
+  },
+  // Day Selector
+  daySelector: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  dayButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 2,
+    borderColor: Colors.border,
+  },
+  dayButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    ...Shadows.medium,
+  },
+  dayButtonText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
+  },
+  dayButtonTextActive: {
+    color: Colors.textInverse,
+    fontWeight: Typography.fontWeight.bold,
   },
   // Mode Content
   modeContent: {
@@ -440,6 +559,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
+  },
+  preciseDay: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    fontWeight: Typography.fontWeight.medium,
   },
   preciseTime: {
     fontSize: Typography.fontSize.xxxl,

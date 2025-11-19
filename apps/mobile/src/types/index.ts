@@ -198,6 +198,43 @@ export type PlayerWithSkills = Profile & {
 };
 
 // ============================================================================
+// Notification Types
+// ============================================================================
+
+export type NotificationSettings = {
+  id: string;
+  user_id: string;
+  notify_30min_before_game: boolean;
+  notify_5min_before_game: boolean;
+  notify_new_chat_message: boolean;
+  notify_player_joins_game: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationStatus = 'pending' | 'sent' | 'failed' | 'cancelled';
+
+export type NotificationType = 
+  | 'game_30min_reminder'
+  | 'game_5min_reminder'
+  | 'chat_message'
+  | 'player_joined';
+
+export type NotificationQueueItem = {
+  id: string;
+  user_id: string;
+  notification_type: NotificationType;
+  game_id: string | null;
+  title: string;
+  body: string;
+  data: Record<string, any> | null;
+  scheduled_for: string;
+  status: NotificationStatus;
+  sent_at: string | null;
+  created_at: string;
+};
+
+// ============================================================================
 // UI Helper Types
 // ============================================================================
 

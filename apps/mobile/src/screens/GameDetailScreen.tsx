@@ -14,7 +14,6 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav, Card, EmptyState } from '../components';
@@ -29,7 +28,12 @@ import {
   subscribeToParticipantUpdates,
 } from '../services/games';
 import { getCurrentUser } from '../services/auth';
-import type { GameEventWithDetails, GameChatMessageWithSender, Profile } from '../types';
+import {
+  scheduleChatMessageNotification,
+  schedulePlayerJoinedNotification,
+  getNotificationSettings,
+} from '../services/notifications';
+import type { GameEventWithDetails, GameChatMessageWithSender } from '../types';
 import { SKILL_LEVEL_LABELS } from '../types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -46,7 +50,6 @@ export const GameDetailScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<GameDetailRouteParams, 'GameDetail'>>();
   const { gameId } = route.params;
-  const insets = useSafeAreaInsets();
 
   const [game, setGame] = useState<GameEventWithDetails | null>(null);
   const [messages, setMessages] = useState<GameChatMessageWithSender[]>([]);
@@ -57,7 +60,6 @@ export const GameDetailScreen: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [showEndGameModal, setShowEndGameModal] = useState(false);
   const [endGameCountdown, setEndGameCountdown] = useState<number>(5);
-  const [showPlayersModal, setShowPlayersModal] = useState(false);
 
   const chatChannelRef = useRef<RealtimeChannel | null>(null);
   const participantChannelRef = useRef<RealtimeChannel | null>(null);
@@ -84,8 +86,12 @@ export const GameDetailScreen: React.FC = () => {
 
   useEffect(() => {
     // Setup real-time subscriptions after initial load
+    console.log('🔄 Subscription useEffect triggered. game:', !!game, 'userId:', !!currentUserId);
     if (game && currentUserId) {
+      console.log('✅ Calling setupRealtimeSubscriptions()');
       setupRealtimeSubscriptions();
+    } else {
+      console.log('❌ Not setting up subscriptions yet - waiting for game and userId');
     }
   }, [game?.id, currentUserId]);
 
@@ -134,19 +140,79 @@ export const GameDetailScreen: React.FC = () => {
   };
 
   const setupRealtimeSubscriptions = () => {
+    console.log('🔌 Setting up realtime subscriptions for game:', gameId);
+    console.log('👤 Current user ID:', currentUserId);
+    
     // Subscribe to chat messages
-    chatChannelRef.current = subscribeToChatMessages(gameId, (message) => {
+    chatChannelRef.current = subscribeToChatMessages(gameId, async (message) => {
+      console.log('📨 Chat subscription callback triggered!', message);
       setMessages((prev) => [...prev, message]);
       // Scroll both the main scroll view and the chat scroll view
       setTimeout(() => {
         chatScrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
+
+      // Trigger notification if message is from another user
+      if (currentUserId && message.sender_id !== currentUserId) {
+        try {
+          console.log('💬 New message from another user, checking settings...');
+          const settings = await getNotificationSettings(currentUserId);
+          console.log('⚙️ Notification settings:', settings);
+          
+          if (settings?.notify_new_chat_message) {
+            const senderName = message.sender_username || 'Someone';
+            const sportName = game?.sport?.name || 'game';
+            console.log('🔔 Sending chat notification...');
+            await scheduleChatMessageNotification(
+              gameId,
+              sportName,
+              senderName,
+              message.message
+            );
+            console.log('✅ Chat notification sent!');
+          } else {
+            console.log('🔕 Chat notifications disabled in settings');
+          }
+        } catch (error) {
+          console.error('❌ Failed to send chat notification:', error);
+        }
+      } else {
+        console.log('ℹ️ Message from current user, skipping notification');
+      }
     });
 
     // Subscribe to participant updates
     participantChannelRef.current = subscribeToParticipantUpdates(gameId, async () => {
+      console.log('👥 Participant subscription callback triggered!');
       const updatedGame = await getGameById(gameId);
       if (updatedGame) {
+        const prevPlayerCount = game?.current_players || 0;
+        const newPlayerCount = updatedGame.current_players || 0;
+        
+        // If a new player joined (not the current user)
+        if (newPlayerCount > prevPlayerCount && currentUserId) {
+          try {
+            console.log('👥 New player joined, checking settings...');
+            const settings = await getNotificationSettings(currentUserId);
+            console.log('⚙️ Notification settings:', settings);
+            
+            if (settings?.notify_player_joins_game) {
+              const sportName = updatedGame.sport?.name || 'game';
+              console.log('🔔 Sending player joined notification...');
+              await schedulePlayerJoinedNotification(
+                gameId,
+                sportName,
+                'A player'
+              );
+              console.log('✅ Player joined notification sent!');
+            } else {
+              console.log('🔕 Player joined notifications disabled in settings');
+            }
+          } catch (error) {
+            console.error('❌ Failed to send player joined notification:', error);
+          }
+        }
+        
         setGame(updatedGame);
       }
     });
@@ -291,8 +357,26 @@ export const GameDetailScreen: React.FC = () => {
       return `In ${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''}`;
     }
 
-    if (diffInHours < 24) {
-      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    // Check if it's today (same calendar day)
+    const isToday = date.getFullYear() === now.getFullYear() &&
+                     date.getMonth() === now.getMonth() &&
+                     date.getDate() === now.getDate();
+    
+    // Check if it's tomorrow (next calendar day)
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.getFullYear() === tomorrow.getFullYear() &&
+                        date.getMonth() === tomorrow.getMonth() &&
+                        date.getDate() === tomorrow.getDate();
+
+    const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+      return `Today at ${timeString}`;
+    }
+
+    if (isTomorrow) {
+      return `Tomorrow at ${timeString}`;
     }
 
     return date.toLocaleDateString([], {
@@ -431,7 +515,7 @@ export const GameDetailScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.infoActionButton}
-              onPress={() => setShowPlayersModal(true)}
+              onPress={() => navigation.navigate('PlayersList' as never, { gameId } as never)}
             >
               <Text style={styles.infoActionIcon}>👥</Text>
               <Text style={styles.infoActionText}>
@@ -529,54 +613,6 @@ export const GameDetailScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Players List Modal */}
-      <Modal
-        visible={showPlayersModal}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setShowPlayersModal(false)}
-      >
-        <SafeAreaView style={styles.playersModalContainer} edges={['top', 'bottom']}>
-          <View style={[styles.playersModalHeader, { paddingTop: Math.max(insets.top + Spacing.md, Spacing.md * 2) }]}>
-            <TouchableOpacity onPress={() => setShowPlayersModal(false)}>
-              <Text style={styles.playersModalCloseButton}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.playersModalHeaderTitle}>
-              Players ({game?.current_players || 0})
-            </Text>
-            <View style={{ width: 30 }} />
-          </View>
-
-          <ScrollView style={styles.playersModalScroll} showsVerticalScrollIndicator={true}>
-            <View style={styles.playersModalList}>
-              {game?.participants && game.participants.length > 0 ? (
-                game.participants.map((player: Profile) => (
-                  <View key={player.id} style={styles.playersModalItem}>
-                    <View style={styles.playersModalAvatar}>
-                      <Text style={styles.playersModalAvatarText}>
-                        {(player.username || player.discord_username || 'U').charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={styles.playersModalInfo}>
-                      <Text style={styles.playersModalName}>
-                        {player.username || player.discord_username || 'Unknown'}
-                      </Text>
-                      {player.id === game?.creator_id && (
-                        <View style={styles.playersModalCreatorBadge}>
-                          <Text style={styles.playersModalCreatorBadgeText}>👑 Creator</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.playersModalNoPlayers}>No players yet</Text>
-              )}
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
 
       {/* End Game Confirmation Modal */}
       <Modal
@@ -775,88 +811,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: Typography.fontWeight.bold,
   },
-  // Players Modal
-  playersModalContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  playersModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  playersModalHeaderTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text,
-  },
-  playersModalCloseButton: {
-    fontSize: Typography.fontSize.xxxl,
-    color: Colors.textSecondary,
-    width: 30,
-    textAlign: 'center',
-  },
-  playersModalScroll: {
-    flex: 1,
-  },
-  playersModalList: {
-    padding: Spacing.md,
-    gap: Spacing.md,
-  },
-  playersModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    ...Shadows.small,
-  },
-  playersModalAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playersModalAvatarText: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.textInverse,
-  },
-  playersModalInfo: {
-    flex: 1,
-  },
-  playersModalName: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  playersModalCreatorBadge: {
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
-    alignSelf: 'flex-start',
-  },
-  playersModalCreatorBadgeText: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.primaryDark,
-  },
-  playersModalNoPlayers: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: Spacing.xl,
-  },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
@@ -907,7 +861,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   chatMessagesScroll: {
-    maxHeight: 300,
+    minHeight: 180,
+    maxHeight: 650,
     marginBottom: Spacing.md,
   },
   chatMessages: {

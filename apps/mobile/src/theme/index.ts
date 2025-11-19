@@ -21,6 +21,7 @@ export const Colors = {
   // Status colors
   success: '#10B981',      // Green
   warning: '#F59E0B',      // Amber
+  warningLight: '#FEF3C7', // Light amber for backgrounds
   error: '#EF4444',        // Red
   info: '#3B82F6',         // Blue
   

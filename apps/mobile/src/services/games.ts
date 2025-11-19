@@ -29,6 +29,7 @@ export const getSports = async (): Promise<Sport[]> => {
 /**
  * Get all active game events (waiting or confirmed)
  * Optionally filter by sport
+ * OPTIMIZED: Gets participant counts in bulk
  */
 export const getActiveGames = async (sportId?: number): Promise<GameEventWithDetails[]> => {
   try {
@@ -50,28 +51,42 @@ export const getActiveGames = async (sportId?: number): Promise<GameEventWithDet
     const { data, error } = await query;
 
     if (error) throw error;
+    if (!data || data.length === 0) return [];
 
-    // Get participant counts for each game
-    const gamesWithDetails = await Promise.all(
-      (data || []).map(async (game) => {
-        const { data: participants, error: participantError } = await supabase
-          .from('game_participants')
-          .select('player_id, profiles!player_id(id, username, discord_username, discord_avatar_url)')
-          .eq('game_id', game.id);
+    // Get participant counts for all games in one query
+    const gameIds = data.map(game => game.id);
+    const { data: participantCounts, error: countError } = await supabase
+      .from('game_participants')
+      .select('game_id, player_id, profiles!player_id(id, username, discord_username, discord_avatar_url)')
+      .in('game_id', gameIds);
 
-        if (participantError) {
-          console.error('Error fetching participants:', participantError);
-        }
+    if (countError) {
+      console.error('Error fetching participants:', countError);
+    }
 
-        return {
-          ...game,
-          sport: Array.isArray(game.sport) ? game.sport[0] : game.sport,
-          creator: Array.isArray(game.creator) ? game.creator[0] : game.creator,
-          current_players: participants?.length || 0,
-          participants: participants?.map(p => p.profiles).filter(Boolean) || [],
-        } as GameEventWithDetails;
-      })
-    );
+    // Group participants by game_id
+    const participantsByGame: Record<string, any[]> = {};
+    (participantCounts || []).forEach((p: any) => {
+      if (!participantsByGame[p.game_id]) {
+        participantsByGame[p.game_id] = [];
+      }
+      if (p.profiles) {
+        participantsByGame[p.game_id].push(p.profiles);
+      }
+    });
+
+    // Map games with participant data
+    const gamesWithDetails = data.map((game) => {
+      const participants = participantsByGame[game.id] || [];
+      
+      return {
+        ...game,
+        sport: Array.isArray(game.sport) ? game.sport[0] : game.sport,
+        creator: Array.isArray(game.creator) ? game.creator[0] : game.creator,
+        current_players: participants.length,
+        participants,
+      } as GameEventWithDetails;
+    });
 
     return gamesWithDetails;
   } catch (error) {
@@ -181,59 +196,93 @@ export const hasJoinedGame = async (gameId: string, playerId: string): Promise<b
 /**
  * Get games that the user has joined
  * Only returns active games (waiting or confirmed status)
+ * OPTIMIZED: Uses subquery to get participant count in single query
  */
 export const getUserGames = async (userId: string): Promise<GameEventWithDetails[]> => {
   try {
-    const { data: participations, error: participationError } = await supabase
-      .from('game_participants')
-      .select('game_id')
-      .eq('player_id', userId);
-
-    if (participationError) throw participationError;
-
-    if (!participations || participations.length === 0) {
-      return [];
-    }
-
-    const gameIds = participations.map(p => p.game_id);
-
+    // Optimized: Get games with participant count in a single query
     const { data, error } = await supabase
-      .from('game_events')
+      .from('game_participants')
       .select(`
-        *,
-        sport:sports(id, name, slug, icon),
-        creator:profiles!creator_id(id, username, discord_username, discord_avatar_url)
+        game_id,
+        game_events!inner(
+          id,
+          sport_id,
+          creator_id,
+          min_players,
+          max_players,
+          skill_level_min,
+          skill_level_max,
+          scheduled_time,
+          time_type,
+          time_label,
+          status,
+          created_at,
+          updated_at,
+          sport:sports(id, name, slug, icon),
+          creator:profiles!creator_id(id, username, discord_username, discord_avatar_url)
+        )
       `)
-      .in('id', gameIds)
-      .in('status', ['waiting', 'confirmed']) // Filter out completed and cancelled games
-      .order('scheduled_time', { ascending: true });
+      .eq('player_id', userId)
+      .in('game_events.status', ['waiting', 'confirmed']);
 
     if (error) throw error;
+    if (!data || data.length === 0) return [];
 
-    // Get participant counts for each game
-    const gamesWithDetails = await Promise.all(
-      (data || []).map(async (game) => {
-        const { data: participants, error: participantError } = await supabase
-          .from('game_participants')
-          .select('player_id, profiles!player_id(id, username, discord_username, discord_avatar_url)')
-          .eq('game_id', game.id);
+    // Get participant counts for all games in one query
+    const gameIds = data.map(p => (p.game_events as any).id);
+    const { data: participantCounts, error: countError } = await supabase
+      .from('game_participants')
+      .select('game_id, player_id, profiles!player_id(id, username, discord_username, discord_avatar_url)')
+      .in('game_id', gameIds);
 
-        if (participantError) {
-          console.error('Error fetching participants:', participantError);
-        }
+    if (countError) {
+      console.error('Error fetching participant counts:', countError);
+    }
 
-        return {
-          ...game,
-          sport: Array.isArray(game.sport) ? game.sport[0] : game.sport,
-          creator: Array.isArray(game.creator) ? game.creator[0] : game.creator,
-          current_players: participants?.length || 0,
-          participants: participants?.map(p => p.profiles).filter(Boolean) || [],
-          is_joined: true,
-        } as GameEventWithDetails;
-      })
-    );
+    // Group participants by game_id
+    const participantsByGame: Record<string, any[]> = {};
+    (participantCounts || []).forEach((p: any) => {
+      if (!participantsByGame[p.game_id]) {
+        participantsByGame[p.game_id] = [];
+      }
+      if (p.profiles) {
+        participantsByGame[p.game_id].push(p.profiles);
+      }
+    });
 
-    return gamesWithDetails;
+    // Transform data to GameEventWithDetails format
+    const games = data.map((p: any) => {
+      const game = p.game_events;
+      const gameId = game.id;
+      const participants = participantsByGame[gameId] || [];
+      
+      return {
+        ...game,
+        sport: Array.isArray(game.sport) ? game.sport[0] : game.sport,
+        creator: Array.isArray(game.creator) ? game.creator[0] : game.creator,
+        current_players: participants.length,
+        participants,
+        is_joined: true,
+      } as GameEventWithDetails;
+    });
+
+    // Remove duplicates (same game may appear multiple times if user is somehow duplicated)
+    const uniqueGames = games.reduce((acc: GameEventWithDetails[], game) => {
+      if (!acc.find(g => g.id === game.id)) {
+        acc.push(game);
+      }
+      return acc;
+    }, []);
+
+    // Sort by scheduled_time (ascending) in JavaScript since PostgREST doesn't support nested ordering
+    uniqueGames.sort((a, b) => {
+      const aTime = new Date(a.scheduled_time).getTime();
+      const bTime = new Date(b.scheduled_time).getTime();
+      return aTime - bTime;
+    });
+
+    return uniqueGames;
   } catch (error) {
     console.error('Error fetching user games:', error);
     throw error;
@@ -316,6 +365,7 @@ export const createGameEvent = async (params: CreateGameEventParams): Promise<st
 /**
  * Get user's game posting history
  * Returns last N games created by the user for quick re-posting
+ * OPTIMIZED: Gets participant counts in bulk
  */
 export const getUserGameHistory = async (userId: string, limit: number = 5): Promise<GameEventWithDetails[]> => {
   try {
@@ -331,28 +381,42 @@ export const getUserGameHistory = async (userId: string, limit: number = 5): Pro
       .limit(limit);
 
     if (error) throw error;
+    if (!data || data.length === 0) return [];
 
-    // Get participant counts for each game
-    const gamesWithDetails = await Promise.all(
-      (data || []).map(async (game) => {
-        const { data: participants, error: participantError } = await supabase
-          .from('game_participants')
-          .select('player_id, profiles!player_id(id, username, discord_username, discord_avatar_url)')
-          .eq('game_id', game.id);
+    // Get participant counts for all games in one query
+    const gameIds = data.map(game => game.id);
+    const { data: participantCounts, error: countError } = await supabase
+      .from('game_participants')
+      .select('game_id, player_id, profiles!player_id(id, username, discord_username, discord_avatar_url)')
+      .in('game_id', gameIds);
 
-        if (participantError) {
-          console.error('Error fetching participants:', participantError);
-        }
+    if (countError) {
+      console.error('Error fetching participants:', countError);
+    }
 
-        return {
-          ...game,
-          sport: Array.isArray(game.sport) ? game.sport[0] : game.sport,
-          creator: Array.isArray(game.creator) ? game.creator[0] : game.creator,
-          current_players: participants?.length || 0,
-          participants: participants?.map(p => p.profiles).filter(Boolean) || [],
-        } as GameEventWithDetails;
-      })
-    );
+    // Group participants by game_id
+    const participantsByGame: Record<string, any[]> = {};
+    (participantCounts || []).forEach((p: any) => {
+      if (!participantsByGame[p.game_id]) {
+        participantsByGame[p.game_id] = [];
+      }
+      if (p.profiles) {
+        participantsByGame[p.game_id].push(p.profiles);
+      }
+    });
+
+    // Map games with participant data
+    const gamesWithDetails = data.map((game) => {
+      const participants = participantsByGame[game.id] || [];
+      
+      return {
+        ...game,
+        sport: Array.isArray(game.sport) ? game.sport[0] : game.sport,
+        creator: Array.isArray(game.creator) ? game.creator[0] : game.creator,
+        current_players: participants.length,
+        participants,
+      } as GameEventWithDetails;
+    });
 
     return gamesWithDetails;
   } catch (error) {
@@ -586,6 +650,26 @@ export interface UserStats {
   activeGames: number;
   gamesCreated: number;
 }
+
+/**
+ * Manually trigger auto-end for old games
+ * This is a fallback in case the cron job isn't running
+ * Should be called periodically from the app (e.g., when viewing My Games)
+ */
+export const triggerAutoEndOldGames = async (): Promise<void> => {
+  try {
+    // Call the database function via RPC
+    const { error } = await supabase.rpc('auto_end_old_games');
+    
+    if (error) {
+      console.error('Error triggering auto-end:', error);
+      // Don't throw - this is a background operation
+    }
+  } catch (error) {
+    console.error('Error calling auto_end_old_games:', error);
+    // Don't throw - this is a background operation
+  }
+};
 
 /**
  * Get comprehensive user statistics

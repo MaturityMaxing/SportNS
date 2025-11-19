@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, Alert, BackHandler, ScrollView } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { SportSelector, PlayersAndSkillStep, TimeSelector, Button } from '../components';
+import { SportSelector, PlayersAndSkillStep, TimeSelector, Button, TopNav } from '../components';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { getSports, createGameEvent, getUserGameHistory } from '../services/games';
 import { getCurrentUser } from '../services/auth';
@@ -19,7 +18,6 @@ import { SKILL_LEVELS, TIME_OF_DAY_OPTIONS, SKILL_LEVEL_LABELS } from '../types'
  */
 export const PostGameScreen: React.FC = () => {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   // State for form steps
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -239,57 +237,162 @@ export const PostGameScreen: React.FC = () => {
       );
     } catch (error) {
       console.error('Error posting game:', error);
-      Alert.alert(
-        'Error',
-        'Failed to post game. Please try again.'
+      
+      // Check if it's a network error
+      const isNetworkError = error instanceof Error && (
+        error.message.includes('network') ||
+        error.message.includes('fetch') ||
+        error.message.includes('Network request failed') ||
+        error.message.includes('timeout') ||
+        error.message.includes('Failed to fetch')
       );
+      
+      if (isNetworkError) {
+        Alert.alert(
+          'Connection Error',
+          'Unable to connect to the server. Please check your internet connection and try again.',
+          [
+            { text: 'OK' }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          'Failed to post game. Please try again.',
+          [
+            { text: 'OK' }
+          ]
+        );
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handlePrefillFromHistory = (game: GameEventWithDetails) => {
-    // Prefill form with data from previous game
-    setSelectedSportId(game.sport_id);
-    setMinPlayers(game.min_players);
-    setMaxPlayers(game.max_players);
-    setSkillRestrictionEnabled(game.skill_level_min !== null && game.skill_level_max !== null);
-    setMinSkillLevel(game.skill_level_min || SKILL_LEVELS[0]);
-    setMaxSkillLevel(game.skill_level_max || SKILL_LEVELS[4]);
-    setTimeType(game.time_type);
-    
-    // Don't copy the exact time, but keep the time type
-    if (game.time_type === 'now') {
-      setSelectedTime(new Date());
-    } else if (game.time_type === 'time_of_day' && game.time_label) {
-      // Find matching time of day option
-      const option = Object.entries(TIME_OF_DAY_OPTIONS).find(
-        ([_, value]) => value.label === game.time_label
-      )?.[0] as TimeOfDayOption | undefined;
-      
-      if (option) {
-        setTimeOfDayOption(option);
-        const now = new Date();
-        const optionData = TIME_OF_DAY_OPTIONS[option];
-        const scheduledTime = new Date(now);
-        scheduledTime.setHours(optionData.hour, 0, 0, 0);
-        
-        // If the time has passed today, schedule for tomorrow
-        if (scheduledTime <= now) {
-          scheduledTime.setDate(scheduledTime.getDate() + 1);
-        }
-        
-        setSelectedTime(scheduledTime);
-      }
-    }
-
-    // Go to step 1 to review
-    setCurrentStep(1);
-    setHistoryExpanded(false);
-
+  const handlePostFromHistory = (game: GameEventWithDetails) => {
+    // Show confirmation dialog
     Alert.alert(
-      'Pre-filled',
-      `Form has been filled with data from your previous ${game.sport?.name} game.`
+      'Post Game',
+      `Do you want to post this ${game.sport?.name} game?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            if (!userId) {
+              Alert.alert('Error', 'You must be logged in to post a game.');
+              return;
+            }
+
+            try {
+              setSubmitting(true);
+
+              // Calculate the scheduled time based on the game's time type
+              let scheduledTime: Date;
+              let timeOfDayOptionValue: TimeOfDayOption | null = null;
+
+              if (game.time_type === 'now') {
+                scheduledTime = new Date();
+              } else if (game.time_type === 'time_of_day' && game.time_label) {
+                // Find matching time of day option
+                const option = Object.entries(TIME_OF_DAY_OPTIONS).find(
+                  ([_, value]) => value.label === game.time_label
+                )?.[0] as TimeOfDayOption | undefined;
+                
+                if (option) {
+                  timeOfDayOptionValue = option;
+                  const now = new Date();
+                  const optionData = TIME_OF_DAY_OPTIONS[option];
+                  scheduledTime = new Date(now);
+                  scheduledTime.setHours(optionData.hour, 0, 0, 0);
+                  
+                  // If the time has passed today, schedule for tomorrow
+                  if (scheduledTime <= now) {
+                    scheduledTime.setDate(scheduledTime.getDate() + 1);
+                  }
+                } else {
+                  // Fallback: use the original scheduled_time
+                  scheduledTime = new Date(game.scheduled_time);
+                }
+              } else {
+                // For precise times, calculate when this time would occur next
+                const now = new Date();
+                const originalDate = new Date(game.scheduled_time);
+                scheduledTime = new Date(now);
+                scheduledTime.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
+                
+                // If that time has passed today, set it for tomorrow
+                if (scheduledTime <= now) {
+                  scheduledTime.setDate(scheduledTime.getDate() + 1);
+                }
+              }
+
+              // Prepare game event data from history
+              const gameData = {
+                sport_id: game.sport_id,
+                creator_id: userId,
+                min_players: game.min_players,
+                max_players: game.max_players,
+                skill_level_min: game.skill_level_min,
+                skill_level_max: game.skill_level_max,
+                scheduled_time: scheduledTime,
+                time_type: game.time_type,
+                time_label: timeOfDayOptionValue ? TIME_OF_DAY_OPTIONS[timeOfDayOptionValue].label : game.time_label,
+              };
+
+              // Create game event (also auto-joins creator)
+              const gameId = await createGameEvent(gameData);
+
+              console.log('Game posted from history successfully:', gameId);
+
+              Alert.alert(
+                'Success!',
+                'Your game has been posted and you\'ve been added as the first participant.',
+                [
+                  { 
+                    text: 'OK', 
+                    onPress: () => navigation.goBack()
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Error posting game from history:', error);
+              
+              // Check if it's a network error
+              const isNetworkError = error instanceof Error && (
+                error.message.includes('network') ||
+                error.message.includes('fetch') ||
+                error.message.includes('Network request failed') ||
+                error.message.includes('timeout') ||
+                error.message.includes('Failed to fetch')
+              );
+              
+              if (isNetworkError) {
+                Alert.alert(
+                  'Connection Error',
+                  'Unable to connect to the server. Please check your internet connection and try again.',
+                  [
+                    { text: 'OK' }
+                  ]
+                );
+              } else {
+                Alert.alert(
+                  'Error',
+                  'Failed to post game. Please try again.',
+                  [
+                    { text: 'OK' }
+                  ]
+                );
+              }
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -315,6 +418,34 @@ export const PostGameScreen: React.FC = () => {
     }
     
     return timeLabel || timeType;
+  };
+
+  // Get day label (Today/Tomorrow) for a scheduled time
+  const getDayLabel = (dateString: string): 'Today' | 'Tomorrow' | null => {
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    // Check if it's today (same calendar day)
+    const isToday = date.getFullYear() === now.getFullYear() &&
+                     date.getMonth() === now.getMonth() &&
+                     date.getDate() === now.getDate();
+    
+    if (isToday) {
+      return 'Today';
+    }
+    
+    // Check if it's tomorrow (next calendar day)
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.getFullYear() === tomorrow.getFullYear() &&
+                        date.getMonth() === tomorrow.getMonth() &&
+                        date.getDate() === tomorrow.getDate();
+    
+    if (isTomorrow) {
+      return 'Tomorrow';
+    }
+    
+    return null; // Beyond tomorrow
   };
 
   // Check if a game's scheduled time is less than 45 minutes away
@@ -379,7 +510,7 @@ export const PostGameScreen: React.FC = () => {
             {historyExpanded ? '▼' : '▶'} Previous Posts
           </Text>
           <Text style={styles.historySubtitle}>
-            Tap to {historyExpanded ? 'hide' : 'view'} and quick-post
+            Tap to {historyExpanded ? 'hide' : 'view'} and post again
           </Text>
         </TouchableOpacity>
 
@@ -403,7 +534,7 @@ export const PostGameScreen: React.FC = () => {
                         styles.historyCard,
                         tooClose && styles.historyCardDisabled
                       ]}
-                      onPress={() => handlePrefillFromHistory(game)}
+                      onPress={() => handlePostFromHistory(game)}
                       disabled={tooClose}
                     >
                       <View style={styles.historyCardHeader}>
@@ -464,6 +595,18 @@ export const PostGameScreen: React.FC = () => {
                         <Text style={[
                           styles.historyCardLabel,
                           tooClose && styles.historyCardTextDisabled
+                        ]}>📅 Day:</Text>
+                        <Text style={[
+                          styles.historyCardValue,
+                          tooClose && styles.historyCardTextDisabled
+                        ]}>
+                          {getDayLabel(game.scheduled_time) || 'Later'}
+                        </Text>
+                      </View>
+                      <View style={styles.historyCardDetail}>
+                        <Text style={[
+                          styles.historyCardLabel,
+                          tooClose && styles.historyCardTextDisabled
                         ]}>⏰ Time:</Text>
                         <Text style={[
                           styles.historyCardValue,
@@ -477,7 +620,7 @@ export const PostGameScreen: React.FC = () => {
                           styles.historyCardAction,
                           tooClose && styles.historyCardTextDisabled
                         ]}>
-                          {tooClose ? 'Too soon to reuse' : 'Tap to reuse →'}
+                          {tooClose ? 'Too soon to post' : 'Tap to post again →'}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -605,15 +748,15 @@ export const PostGameScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header with step indicator */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + Spacing.md, Spacing.md * 2) }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Post a Game</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <View style={styles.container}>
+      <TopNav
+        title="Post a Game"
+        centered
+        leftAction={{
+          icon: '←',
+          onPress: handleBack,
+        }}
+      />
 
       {renderStepIndicator()}
 
@@ -641,7 +784,7 @@ export const PostGameScreen: React.FC = () => {
           />
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -649,32 +792,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.backgroundSecondary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  backButton: {
-    padding: Spacing.xs,
-  },
-  backButtonText: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.primary,
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  headerTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text,
-  },
-  headerSpacer: {
-    width: 60,
   },
   stepIndicatorContainer: {
     flexDirection: 'row',

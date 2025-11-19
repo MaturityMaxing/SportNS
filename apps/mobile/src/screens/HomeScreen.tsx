@@ -7,9 +7,13 @@ import { MyGamesScreen } from './MyGamesScreen';
 import { DashboardScreen } from './DashboardScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
 import ProfileScreen from './ProfileScreen';
+import NotificationSettingsScreen from './NotificationSettingsScreen';
 import { PostGameScreen } from './PostGameScreen';
 import { GameDetailScreen } from './GameDetailScreen';
+import { ReEvaluateSkillsScreen } from './ReEvaluateSkillsScreen';
+import { PlayersListScreen } from './PlayersListScreen';
 import { Colors, Typography } from '../theme';
+import { useNotifications } from '../hooks/useNotifications';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -75,6 +79,9 @@ const MainTabs: React.FC = () => {
  * Wraps tabs and includes Profile, PostGame, and GameDetail screens outside of tabs
  */
 export const HomeScreen: React.FC = () => {
+  // Set up notification handlers
+  useNotifications();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -83,8 +90,11 @@ export const HomeScreen: React.FC = () => {
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <Stack.Screen name="PostGame" component={PostGameScreen} />
       <Stack.Screen name="GameDetail" component={GameDetailScreen} />
+      <Stack.Screen name="ReEvaluateSkills" component={ReEvaluateSkillsScreen} />
+      <Stack.Screen name="PlayersList" component={PlayersListScreen} />
     </Stack.Navigator>
   );
 };
