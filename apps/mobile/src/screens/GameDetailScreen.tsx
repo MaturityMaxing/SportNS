@@ -154,30 +154,11 @@ export const GameDetailScreen: React.FC = () => {
 
       // Trigger notification if message is from another user
       if (currentUserId && message.sender_id !== currentUserId) {
-        try {
-          console.log('💬 New message from another user, checking settings...');
-          const settings = await getNotificationSettings(currentUserId);
-          console.log('⚙️ Notification settings:', settings);
-          
-          if (settings?.notify_new_chat_message) {
-            const senderName = message.sender_username || 'Someone';
-            const sportName = game?.sport?.name || 'game';
-            console.log('🔔 Sending chat notification...');
-            await scheduleChatMessageNotification(
-              gameId,
-              sportName,
-              senderName,
-              message.message
-            );
-            console.log('✅ Chat notification sent!');
-          } else {
-            console.log('🔕 Chat notifications disabled in settings');
-          }
-        } catch (error) {
-          console.error('❌ Failed to send chat notification:', error);
-        }
+        // Notifications are now handled server-side via Supabase Edge Functions
+        // We don't need to schedule local notifications here to avoid duplicates
+        console.log('💬 Message received from', message.sender_username);
       } else {
-        console.log('ℹ️ Message from current user, skipping notification');
+        console.log('ℹ️ Message from current user');
       }
     });
 
@@ -191,26 +172,8 @@ export const GameDetailScreen: React.FC = () => {
         
         // If a new player joined (not the current user)
         if (newPlayerCount > prevPlayerCount && currentUserId) {
-          try {
-            console.log('👥 New player joined, checking settings...');
-            const settings = await getNotificationSettings(currentUserId);
-            console.log('⚙️ Notification settings:', settings);
-            
-            if (settings?.notify_player_joins_game) {
-              const sportName = updatedGame.sport?.name || 'game';
-              console.log('🔔 Sending player joined notification...');
-              await schedulePlayerJoinedNotification(
-                gameId,
-                sportName,
-                'A player'
-              );
-              console.log('✅ Player joined notification sent!');
-            } else {
-              console.log('🔕 Player joined notifications disabled in settings');
-            }
-          } catch (error) {
-            console.error('❌ Failed to send player joined notification:', error);
-          }
+           // Notifications are now handled server-side via Supabase Edge Functions
+           console.log('👥 New player joined');
         }
         
         setGame(updatedGame);

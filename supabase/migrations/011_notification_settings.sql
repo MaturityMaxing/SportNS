@@ -6,8 +6,8 @@
 -- PART 1: Notification Settings Table
 -- ============================================================================
 
--- Create notification settings table
-CREATE TABLE notification_settings (
+-- Create notification settings table (if not exists)
+CREATE TABLE IF NOT EXISTS notification_settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   notify_30min_before_game BOOLEAN DEFAULT true,
@@ -20,9 +20,10 @@ CREATE TABLE notification_settings (
 );
 
 -- Index for performance
-CREATE INDEX idx_notification_settings_user ON notification_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_settings_user ON notification_settings(user_id);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_notification_settings_updated_at ON notification_settings;
 CREATE TRIGGER update_notification_settings_updated_at
   BEFORE UPDATE ON notification_settings
   FOR EACH ROW
@@ -36,21 +37,25 @@ ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
 -- ============================================================================
 
 -- Users can view their own notification settings
+DROP POLICY IF EXISTS "Users can view their own notification settings" ON notification_settings;
 CREATE POLICY "Users can view their own notification settings"
   ON notification_settings FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can insert their own notification settings
+DROP POLICY IF EXISTS "Users can insert their own notification settings" ON notification_settings;
 CREATE POLICY "Users can insert their own notification settings"
   ON notification_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own notification settings
+DROP POLICY IF EXISTS "Users can update their own notification settings" ON notification_settings;
 CREATE POLICY "Users can update their own notification settings"
   ON notification_settings FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- Users can delete their own notification settings
+DROP POLICY IF EXISTS "Users can delete their own notification settings" ON notification_settings;
 CREATE POLICY "Users can delete their own notification settings"
   ON notification_settings FOR DELETE
   USING (auth.uid() = user_id);
@@ -71,6 +76,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to create default notification settings when profile is created
+DROP TRIGGER IF EXISTS trigger_create_default_notification_settings ON profiles;
 CREATE TRIGGER trigger_create_default_notification_settings
   AFTER INSERT ON profiles
   FOR EACH ROW
@@ -80,24 +86,32 @@ CREATE TRIGGER trigger_create_default_notification_settings
 -- PART 4: Notification Queue Table (for scheduled notifications)
 -- ============================================================================
 
--- Create notification status enum
-CREATE TYPE notification_status AS ENUM (
-  'pending',
-  'sent',
-  'failed',
-  'cancelled'
-);
+-- Create notification status enum (if not exists)
+DO $$ BEGIN
+  CREATE TYPE notification_status AS ENUM (
+    'pending',
+    'sent',
+    'failed',
+    'cancelled'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
--- Create notification type enum
-CREATE TYPE notification_type AS ENUM (
-  'game_30min_reminder',
-  'game_5min_reminder',
-  'chat_message',
-  'player_joined'
-);
+-- Create notification type enum (if not exists)
+DO $$ BEGIN
+  CREATE TYPE notification_type AS ENUM (
+    'game_30min_reminder',
+    'game_5min_reminder',
+    'chat_message',
+    'player_joined'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
--- Create notification queue table
-CREATE TABLE notification_queue (
+-- Create notification queue table (if not exists)
+CREATE TABLE IF NOT EXISTS notification_queue (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   notification_type notification_type NOT NULL,
@@ -112,24 +126,26 @@ CREATE TABLE notification_queue (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_notification_queue_user ON notification_queue(user_id);
-CREATE INDEX idx_notification_queue_status ON notification_queue(status);
-CREATE INDEX idx_notification_queue_scheduled ON notification_queue(scheduled_for);
-CREATE INDEX idx_notification_queue_game ON notification_queue(game_id);
+CREATE INDEX IF NOT EXISTS idx_notification_queue_user ON notification_queue(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_queue_status ON notification_queue(status);
+CREATE INDEX IF NOT EXISTS idx_notification_queue_scheduled ON notification_queue(scheduled_for);
+CREATE INDEX IF NOT EXISTS idx_notification_queue_game ON notification_queue(game_id);
 
 -- Composite index for finding pending notifications to send
-CREATE INDEX idx_notification_queue_pending ON notification_queue(status, scheduled_for)
+CREATE INDEX IF NOT EXISTS idx_notification_queue_pending ON notification_queue(status, scheduled_for)
   WHERE status = 'pending';
 
 -- Enable RLS
 ALTER TABLE notification_queue ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own notifications
+DROP POLICY IF EXISTS "Users can view their own notifications" ON notification_queue;
 CREATE POLICY "Users can view their own notifications"
   ON notification_queue FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Only system can insert/update notifications (handled by backend/triggers)
+DROP POLICY IF EXISTS "Service role can manage notifications" ON notification_queue;
 CREATE POLICY "Service role can manage notifications"
   ON notification_queue FOR ALL
   USING (auth.jwt()->>'role' = 'service_role');
@@ -325,6 +341,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to notify when player joins game
+DROP TRIGGER IF EXISTS trigger_notify_on_player_join ON game_participants;
 CREATE TRIGGER trigger_notify_on_player_join
   AFTER INSERT ON game_participants
   FOR EACH ROW
@@ -395,6 +412,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to notify when chat message is sent
+DROP TRIGGER IF EXISTS trigger_notify_on_chat_message ON game_chat_messages;
 CREATE TRIGGER trigger_notify_on_chat_message
   AFTER INSERT ON game_chat_messages
   FOR EACH ROW

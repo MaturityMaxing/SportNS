@@ -184,63 +184,12 @@ export const DashboardScreen: React.FC = () => {
       await loadGames();
 
       // Schedule game reminders
+      // Note: Reminders are now handled server-side via Supabase Edge Functions
       try {
-        console.log('⏰ Scheduling game reminders...');
-        const settings = await getNotificationSettings(currentUserId);
-        console.log('⚙️ Notification settings:', settings);
-        
-        const game = games.find(g => g.id === gameId);
-        if (game) {
-          const scheduledTime = new Date(game.scheduled_time);
-          const now = new Date();
-          const sportName = game.sport?.name || 'game';
-          
-          console.log('🕐 Game time:', scheduledTime.toLocaleString());
-          console.log('🕐 Current time:', now.toLocaleString());
-
-          // Schedule 30-minute reminder
-          if (settings?.notify_30min_before_game) {
-            const notifyTime = new Date(scheduledTime.getTime() - 30 * 60 * 1000);
-            const secondsUntil = (notifyTime.getTime() - now.getTime()) / 1000;
-            console.log('⏰ 30min reminder in', secondsUntil, 'seconds');
-            
-            if (secondsUntil > 0) {
-              await scheduleLocalNotification(
-                'Game Reminder',
-                `Your ${sportName} game starts in 30 minutes`,
-                { type: 'game_reminder', game_id: gameId, minutes_until: 30 },
-                secondsUntil
-              );
-            } else {
-              console.log('⏰ 30min reminder time already passed');
-            }
-          } else {
-            console.log('🔕 30min reminders disabled');
-          }
-
-          // Schedule 5-minute reminder
-          if (settings?.notify_5min_before_game) {
-            const notifyTime = new Date(scheduledTime.getTime() - 5 * 60 * 1000);
-            const secondsUntil = (notifyTime.getTime() - now.getTime()) / 1000;
-            console.log('⏰ 5min reminder in', secondsUntil, 'seconds');
-            
-            if (secondsUntil > 0) {
-              await scheduleLocalNotification(
-                'Game Reminder',
-                `Your ${sportName} game starts in 5 minutes`,
-                { type: 'game_reminder', game_id: gameId, minutes_until: 5 },
-                secondsUntil
-              );
-            } else {
-              console.log('⏰ 5min reminder time already passed');
-            }
-          } else {
-            console.log('🔕 5min reminders disabled');
-          }
-        }
+        console.log('⏰ Game reminders will be sent via server push notifications');
+        // Client-side scheduling removed to avoid duplicates
       } catch (notifError) {
-        console.error('❌ Failed to schedule game reminders:', notifError);
-        // Don't show error to user - reminders are optional
+        console.error('❌ Failed to log reminder info:', notifError);
       }
     } catch (error) {
       console.error('Error joining game:', error);

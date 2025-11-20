@@ -8,14 +8,26 @@
     "mobile:ios": "pnpm --filter mobile ios",
     "mobile:android": "pnpm --filter mobile android",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "supabase:login": "pnpx supabase login",
+    "supabase:link": "pnpx supabase link",
+    "supabase:deploy": "pnpx supabase functions deploy process-notification-queue --no-verify-jwt",
+    "supabase:secrets": "pnpx supabase secrets set"
   },
-  "keywords": ["sports", "community", "mobile", "react-native", "expo"],
+  "keywords": [
+    "sports",
+    "community",
+    "mobile",
+    "react-native",
+    "expo"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "supabase": "^2.58.5"
   }
 }
-
