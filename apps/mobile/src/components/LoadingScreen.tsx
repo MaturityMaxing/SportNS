@@ -24,6 +24,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   message: {
+    fontFamily: Typography.fontFamily.regular,
     marginTop: Spacing.md,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,

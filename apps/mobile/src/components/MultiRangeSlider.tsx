@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   labelTitle: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
@@ -105,9 +106,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   valueBoxMax: {
-    backgroundColor: '#d4f4dd',
+    backgroundColor: Colors.primaryLight,
   },
   valueText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,

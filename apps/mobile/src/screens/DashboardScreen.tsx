@@ -9,8 +9,10 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { User, Megaphone, Clock, Users, BarChart3, Check, Sparkles, AlertTriangle, Activity, ChevronRight } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { TopNav, Card, EmptyState } from '../components';
+import { TopNav, Card, EmptyState, SportIcon } from '../components';
 import { 
   getActiveGames, 
   joinGame, 
@@ -36,6 +38,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
  */
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [games, setGames] = useState<GameEventWithDetails[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
   const [selectedSports, setSelectedSports] = useState<number[]>([]);
@@ -186,7 +189,7 @@ export const DashboardScreen: React.FC = () => {
       // Schedule game reminders
       // Note: Reminders are now handled server-side via Supabase Edge Functions
       try {
-        console.log('⏰ Game reminders will be sent via server push notifications');
+        console.log('Game reminders will be sent via server push notifications');
         // Client-side scheduling removed to avoid duplicates
       } catch (notifError) {
         console.error('❌ Failed to log reminder info:', notifError);
@@ -229,7 +232,7 @@ export const DashboardScreen: React.FC = () => {
     const diffInHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (timeType === 'now') {
-      return 'Right now! 🏃‍♂️';
+      return 'Right now!';
     }
 
     if (diffInHours < 1) {
@@ -309,13 +312,13 @@ export const DashboardScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <TopNav 
-          title="NS SPORTS" 
-          rightAction={{
-            icon: '👤',
-            onPress: handleProfilePress,
-          }}
-        />
+      <TopNav 
+        title="NS SPORTS"
+        rightAction={{
+          icon: User,
+          onPress: handleProfilePress,
+        }}
+      />
         <View style={styles.centerContainer}>
           <Text style={styles.loadingText}>Loading games...</Text>
         </View>
@@ -328,7 +331,6 @@ export const DashboardScreen: React.FC = () => {
       <TopNav 
         title="NS SPORTS"
         rightAction={{
-          icon: '👤',
           label: getUserInitial(),
           onPress: handleProfilePress,
         }}
@@ -336,6 +338,7 @@ export const DashboardScreen: React.FC = () => {
       
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
@@ -343,7 +346,6 @@ export const DashboardScreen: React.FC = () => {
       >
         {/* Sport Filter - Multiple Selection */}
         <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Filter by Sport (select multiple)</Text>
           <View style={styles.filterGrid}>
             <TouchableOpacity
               style={[
@@ -358,7 +360,7 @@ export const DashboardScreen: React.FC = () => {
                   selectedSports.length === 0 && styles.filterChipTextActive,
                 ]}
               >
-                All Sports
+                All
               </Text>
             </TouchableOpacity>
             {sports.map((sport) => (
@@ -370,7 +372,11 @@ export const DashboardScreen: React.FC = () => {
                 ]}
                 onPress={() => handleSportToggle(sport.id)}
               >
-                <Text style={styles.filterChipIcon}>{sport.icon || '🏃'}</Text>
+                <SportIcon 
+                  sport={sport} 
+                  size={20} 
+                  color={selectedSports.includes(sport.id) ? Colors.textInverse : Colors.textSecondary}
+                />
                 <Text
                   style={[
                     styles.filterChipText,
@@ -384,32 +390,18 @@ export const DashboardScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Post Game Button */}
-        <View style={styles.postButtonSection}>
-          <TouchableOpacity 
-            style={styles.postButton}
-            onPress={handlePostGame}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.postButtonIcon}>📢</Text>
-            <View style={styles.postButtonTextContainer}>
-              <Text style={styles.postButtonTitle}>Post a New Game</Text>
-              <Text style={styles.postButtonSubtitle}>Create a game and invite players</Text>
-            </View>
-            <Text style={styles.postButtonArrow}>→</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Games List */}
-        <View style={styles.gamesSection}>
-          {filteredGames.length === 0 ? (
-          <EmptyState
-            icon="⚽"
-            title="No Games Available"
-            description="There are no active games at the moment. Check back soon or create your own!"
-          />
-          ) : (
-            filteredGames.map((game) => (
+        {filteredGames.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <EmptyState
+              icon={Activity}
+              title="No Games Available"
+              description="There are no active games at the moment. Check back soon or create your own!"
+            />
+          </View>
+        ) : (
+          <View style={styles.gamesSection}>
+            {filteredGames.map((game) => (
               <GameCard
                 key={game.id}
                 game={game}
@@ -419,10 +411,30 @@ export const DashboardScreen: React.FC = () => {
                 isSkillMatch={isGameSkillMatch(game)}
                 userSkills={userSkills}
               />
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
+
+      {/* Post Game Button - Fixed at Bottom */}
+      <View style={[styles.postButtonFixed, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+        <TouchableOpacity 
+          style={styles.postButton}
+          onPress={handlePostGame}
+          activeOpacity={0.85}
+        >
+          <View style={styles.postButtonIconContainer}>
+            <Megaphone size={24} color={Colors.textInverse} strokeWidth={2} />
+          </View>
+          <View style={styles.postButtonTextContainer}>
+            <Text style={styles.postButtonTitle}>Post a New Game</Text>
+            <Text style={styles.postButtonSubtitle}>Create a game and invite players</Text>
+          </View>
+          <View style={styles.postButtonArrowContainer}>
+            <ChevronRight size={20} color={Colors.textInverse} strokeWidth={2} />
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -476,23 +488,26 @@ const GameCard: React.FC<GameCardProps> = ({
         {/* Skill Match Badge */}
         {isSkillMatch && hasSkillRequirements && userSkillForSport && (
           <View style={styles.skillMatchBadge}>
-            <Text style={styles.skillMatchBadgeText}>✨ Perfect Match for Your Level</Text>
+            <Sparkles size={14} color={Colors.primaryDark} strokeWidth={2} />
+            <Text style={styles.skillMatchBadgeText}>Perfect Match for Your Level</Text>
           </View>
         )}
 
         {/* Header - Minimal */}
         <View style={styles.gameHeader}>
-          <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
+          <View style={styles.sportIconContainer}>
+            <SportIcon sport={game.sport} size={32} />
+          </View>
           <View style={styles.gameInfoCompact}>
             {/* Sport Name */}
             <Text style={styles.sportName}>{game.sport?.name || 'Unknown Sport'}</Text>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>⏰</Text>
+              <Clock size={16} color={Colors.textSecondary} strokeWidth={2} />
               <Text style={styles.detailText}>{timeString}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>👥</Text>
+              <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
               <Text style={styles.detailText}>
                 {(() => {
                   const current = game.current_players ?? 0;
@@ -501,7 +516,7 @@ const GameCard: React.FC<GameCardProps> = ({
                   const isConfirmed = current >= min;
                   
                   if (isConfirmed) {
-                    return `${current}/${max} ✓ Confirmed`;
+                    return `${current}/${max} Confirmed`;
                   } else {
                     const needed = min - current;
                     return `${current}/${max} (needs ${needed} more)`;
@@ -509,22 +524,21 @@ const GameCard: React.FC<GameCardProps> = ({
                 })()}
               </Text>
             </View>
-            {(game.skill_level_min || game.skill_level_max) && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>📊</Text>
-                <Text style={styles.detailText}>
-                  {game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min] : 'Any'} 
-                  {' - '} 
-                  {game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max] : 'Any'}
-                </Text>
-              </View>
-            )}
+            <View style={styles.detailRow}>
+              <BarChart3 size={16} color={Colors.textSecondary} strokeWidth={2} />
+              <Text style={styles.detailText}>
+                {game.skill_level_min && game.skill_level_max
+                  ? `${SKILL_LEVEL_LABELS[game.skill_level_min]} - ${SKILL_LEVEL_LABELS[game.skill_level_max]}`
+                  : 'All levels'}
+              </Text>
+            </View>
           </View>
           
-          {/* Green checkmark if user is in the game */}
+          {/* Joined indicator */}
           {game.is_joined && (
-            <View style={styles.joinedBadge}>
-              <Text style={styles.joinedCheckmark}>✓</Text>
+            <View style={styles.joinedIndicator}>
+              <Check size={14} color={Colors.primary} strokeWidth={2.5} />
+              <Text style={styles.joinedIndicatorText}>Joined</Text>
             </View>
           )}
         </View>
@@ -534,8 +548,9 @@ const GameCard: React.FC<GameCardProps> = ({
           <>
             {!isUserEligible ? (
               <View style={[styles.gameButton, styles.gameButtonDisabled]}>
+                <AlertTriangle size={16} color={Colors.textSecondary} strokeWidth={2} />
                 <Text style={styles.gameButtonText}>
-                  ⚠️ Your skill level doesn't match this game
+                  Your skill level doesn't match this game
                 </Text>
               </View>
             ) : (
@@ -546,6 +561,7 @@ const GameCard: React.FC<GameCardProps> = ({
                 ]}
                 onPress={() => onJoin(game.id)}
                 disabled={isFull}
+                activeOpacity={0.85}
               >
                 <Text style={styles.gameButtonText}>
                   {isFull ? 'Game Full' : 'Join Game'}
@@ -573,52 +589,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
   },
   // Filter Section
   filterSection: {
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  filterTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.textSecondary,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    borderBottomColor: Colors.borderLight,
   },
   filterGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: Spacing.md,
-    justifyContent: 'space-between',
+    gap: Spacing.xs,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
+    height: 32,
     gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-    minWidth: '30%',
-    maxWidth: '32%',
-    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  filterChipIcon: {
-    fontSize: 16,
-  },
   filterChipText: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.medium,
     color: Colors.text,
@@ -626,43 +632,61 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: Colors.textInverse,
   },
-  // Post Button Section
-  postButtonSection: {
+  // Post Button Section - Fixed at Bottom
+  postButtonFixed: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
   },
   postButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    gap: Spacing.md,
-    ...Shadows.medium,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    gap: Spacing.sm,
+    ...Shadows.small,
   },
-  postButtonIcon: {
-    fontSize: 32,
+  postButtonIconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   postButtonTextContainer: {
     flex: 1,
   },
   postButtonTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,
     marginBottom: 2,
   },
   postButtonSubtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textInverse,
     opacity: 0.9,
   },
-  postButtonArrow: {
-    fontSize: Typography.fontSize.xxl,
-    color: Colors.textInverse,
-    fontWeight: Typography.fontWeight.bold,
+  postButtonArrowContainer: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Empty State Container
+  emptyStateContainer: {
+    flex: 1,
+    minHeight: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Games Section
   gamesSection: {
@@ -683,28 +707,37 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.xs,
   },
-  sportIcon: {
-    fontSize: 40,
+  sportIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.md,
   },
   sportName: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
-  joinedBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.success,
+  joinedIndicator: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: BorderRadius.md,
     marginLeft: Spacing.sm,
+    alignSelf: 'flex-start',
   },
-  joinedCheckmark: {
-    fontSize: 20,
-    color: Colors.textInverse,
-    fontWeight: Typography.fontWeight.bold,
+  joinedIndicatorText: {
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.primary,
   },
   gameDetails: {
     gap: Spacing.sm,
@@ -715,11 +748,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  detailIcon: {
-    fontSize: 16,
-    width: 20,
-  },
   detailText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     flex: 1,
@@ -727,12 +757,18 @@ const styles = StyleSheet.create({
   gameButton: {
     backgroundColor: Colors.primary,
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xs,
     ...Shadows.small,
   },
   gameButtonDisabled: {
     backgroundColor: Colors.backgroundTertiary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xs,
   },
   gameButtonInGame: {
     backgroundColor: Colors.available,
@@ -740,11 +776,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.available,
   },
   gameButtonText: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+    fontWeight: Typography.fontWeight.medium,
     color: Colors.textInverse,
+    letterSpacing: 0.3,
   },
   gameButtonTextInGame: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,
@@ -767,12 +806,14 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   skillFilterTitle: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
   skillFilterSubtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
   },
@@ -783,6 +824,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   skillFilterInfoText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
   },
@@ -791,20 +833,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryLight,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderTopLeftRadius: BorderRadius.lg,
-    borderTopRightRadius: BorderRadius.lg,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
     marginBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
   },
   skillMatchBadgeText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.primaryDark,
     textAlign: 'center',
   },
   gameCardSkillMatch: {
     borderWidth: 2,
     borderColor: Colors.primary,
-    ...Shadows.medium,
+    ...Shadows.small,
   },
 });
 

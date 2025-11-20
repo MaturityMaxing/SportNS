@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text, Alert, BackHandler, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { SportSelector, PlayersAndSkillStep, TimeSelector, Button, TopNav } from '../components';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowLeft, ChevronRight, Check, Clock, Users, BarChart3, Calendar } from 'lucide-react-native';
+import { SportSelector, PlayersAndSkillStep, TimeSelector, Button, TopNav, Card, SportIcon } from '../components';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { getSports, createGameEvent, getUserGameHistory } from '../services/games';
 import { getCurrentUser } from '../services/auth';
@@ -9,15 +11,12 @@ import type { Sport, SkillLevel, TimeType, TimeOfDayOption, GameEventWithDetails
 import { SKILL_LEVELS, TIME_OF_DAY_OPTIONS, SKILL_LEVEL_LABELS } from '../types';
 
 /**
- * PostGameScreen
- * Multi-step form for posting a new game
- * Day 6-7: Implements all 3 steps:
- *   Step 1: Sport Selection
- *   Step 2: Players & Skill (merged from old steps 2 and 3)
- *   Step 3: Time Selection
+ * PostGameScreen - Redesigned with modern UI
+ * Multi-step form for posting a new game with improved visual design
  */
 export const PostGameScreen: React.FC = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   // State for form steps
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -45,14 +44,12 @@ export const PostGameScreen: React.FC = () => {
   // Auto-enable skill restriction when user changes from default "all skills" range
   const handleMinSkillLevelChange = (level: SkillLevel) => {
     setMinSkillLevel(level);
-    // Enable restriction if not the full range (check with new min and current max)
     const isFullRange = level === SKILL_LEVELS[0] && maxSkillLevel === SKILL_LEVELS[4];
     setSkillRestrictionEnabled(!isFullRange);
   };
 
   const handleMaxSkillLevelChange = (level: SkillLevel) => {
     setMaxSkillLevel(level);
-    // Enable restriction if not the full range (check with current min and new max)
     const isFullRange = minSkillLevel === SKILL_LEVELS[0] && level === SKILL_LEVELS[4];
     setSkillRestrictionEnabled(!isFullRange);
   };
@@ -71,11 +68,10 @@ export const PostGameScreen: React.FC = () => {
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (currentStep > 1) {
-        // Go back one step instead of exiting
         setCurrentStep(currentStep - 1);
-        return true; // Prevent default behavior
+        return true;
       }
-      return false; // Allow default behavior (exit screen)
+      return false;
     });
 
     return () => backHandler.remove();
@@ -85,7 +81,6 @@ export const PostGameScreen: React.FC = () => {
     try {
       setLoading(true);
       
-      // Load user
       const user = await getCurrentUser();
       if (user) {
         setUserId(user.id);
@@ -95,7 +90,6 @@ export const PostGameScreen: React.FC = () => {
         return;
       }
 
-      // Load sports
       const sportsData = await getSports();
       setSports(sportsData);
     } catch (error) {
@@ -112,17 +106,7 @@ export const PostGameScreen: React.FC = () => {
     try {
       setHistoryLoading(true);
       const history = await getUserGameHistory(userId, 5);
-      // Debug: Log skill levels to check if they're being retrieved
-      console.log('Game history loaded:', history.map(game => ({
-        id: game.id,
-        sport: game.sport?.name,
-        skill_level_min: game.skill_level_min,
-        skill_level_max: game.skill_level_max,
-        skill_level_min_type: typeof game.skill_level_min,
-        skill_level_max_type: typeof game.skill_level_max,
-      })));
       setGameHistory(history);
-      // historyExpanded is already set to true when user clicks
     } catch (error) {
       console.error('Error loading history:', error);
       Alert.alert('Error', 'Failed to load previous posts.');
@@ -134,7 +118,6 @@ export const PostGameScreen: React.FC = () => {
   // Handle sport selection - auto-advance to step 2
   const handleSelectSport = (sportId: number) => {
     setSelectedSportId(sportId);
-    // Auto-advance to next step after a brief delay for visual feedback
     setTimeout(() => {
       setCurrentStep(2);
     }, 300);
@@ -143,12 +126,10 @@ export const PostGameScreen: React.FC = () => {
   // Handle time type change
   const handleTimeTypeChange = (type: TimeType) => {
     setTimeType(type);
-    // Reset time when changing type
     if (type === 'time_of_day') {
       setSelectedTime(null);
       setTimeOfDayOption(null);
     } else if (type === 'precise') {
-      // Set to 45 minutes from now as default
       const minTime = new Date(Date.now() + 45 * 60 * 1000);
       setSelectedTime(minTime);
       setTimeOfDayOption(null);
@@ -165,7 +146,6 @@ export const PostGameScreen: React.FC = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Final step - validate and submit
       handleSubmit();
     }
   };
@@ -179,7 +159,6 @@ export const PostGameScreen: React.FC = () => {
   };
 
   const handleStepClick = (stepNumber: number) => {
-    // Only allow clicking on completed steps or current step
     if (stepNumber === 1) {
       setCurrentStep(1);
     } else if (stepNumber === 2 && selectedSportId) {
@@ -198,7 +177,6 @@ export const PostGameScreen: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Prepare game event data
       const gameData = {
         sport_id: selectedSportId,
         creator_id: userId,
@@ -211,19 +189,7 @@ export const PostGameScreen: React.FC = () => {
         time_label: timeOfDayOption ? TIME_OF_DAY_OPTIONS[timeOfDayOption].label : null,
       };
 
-      // Debug: Log what we're sending
-      console.log('Creating game with data:', {
-        skillRestrictionEnabled,
-        minSkillLevel,
-        maxSkillLevel,
-        skill_level_min: gameData.skill_level_min,
-        skill_level_max: gameData.skill_level_max,
-      });
-
-      // Create game event (also auto-joins creator)
       const gameId = await createGameEvent(gameData);
-
-      console.log('Game created successfully:', gameId);
 
       Alert.alert(
         'Success!',
@@ -238,7 +204,6 @@ export const PostGameScreen: React.FC = () => {
     } catch (error) {
       console.error('Error posting game:', error);
       
-      // Check if it's a network error
       const isNetworkError = error instanceof Error && (
         error.message.includes('network') ||
         error.message.includes('fetch') ||
@@ -251,18 +216,10 @@ export const PostGameScreen: React.FC = () => {
         Alert.alert(
           'Connection Error',
           'Unable to connect to the server. Please check your internet connection and try again.',
-          [
-            { text: 'OK' }
-          ]
+          [{ text: 'OK' }]
         );
       } else {
-        Alert.alert(
-          'Error',
-          'Failed to post game. Please try again.',
-          [
-            { text: 'OK' }
-          ]
-        );
+        Alert.alert('Error', 'Failed to post game. Please try again.', [{ text: 'OK' }]);
       }
     } finally {
       setSubmitting(false);
@@ -270,15 +227,11 @@ export const PostGameScreen: React.FC = () => {
   };
 
   const handlePostFromHistory = (game: GameEventWithDetails) => {
-    // Show confirmation dialog
     Alert.alert(
       'Post Game',
       `Do you want to post this ${game.sport?.name} game?`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Yes',
           onPress: async () => {
@@ -290,14 +243,12 @@ export const PostGameScreen: React.FC = () => {
             try {
               setSubmitting(true);
 
-              // Calculate the scheduled time based on the game's time type
               let scheduledTime: Date;
               let timeOfDayOptionValue: TimeOfDayOption | null = null;
 
               if (game.time_type === 'now') {
                 scheduledTime = new Date();
               } else if (game.time_type === 'time_of_day' && game.time_label) {
-                // Find matching time of day option
                 const option = Object.entries(TIME_OF_DAY_OPTIONS).find(
                   ([_, value]) => value.label === game.time_label
                 )?.[0] as TimeOfDayOption | undefined;
@@ -309,28 +260,23 @@ export const PostGameScreen: React.FC = () => {
                   scheduledTime = new Date(now);
                   scheduledTime.setHours(optionData.hour, 0, 0, 0);
                   
-                  // If the time has passed today, schedule for tomorrow
                   if (scheduledTime <= now) {
                     scheduledTime.setDate(scheduledTime.getDate() + 1);
                   }
                 } else {
-                  // Fallback: use the original scheduled_time
                   scheduledTime = new Date(game.scheduled_time);
                 }
               } else {
-                // For precise times, calculate when this time would occur next
                 const now = new Date();
                 const originalDate = new Date(game.scheduled_time);
                 scheduledTime = new Date(now);
                 scheduledTime.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
                 
-                // If that time has passed today, set it for tomorrow
                 if (scheduledTime <= now) {
                   scheduledTime.setDate(scheduledTime.getDate() + 1);
                 }
               }
 
-              // Prepare game event data from history
               const gameData = {
                 sport_id: game.sport_id,
                 creator_id: userId,
@@ -343,10 +289,7 @@ export const PostGameScreen: React.FC = () => {
                 time_label: timeOfDayOptionValue ? TIME_OF_DAY_OPTIONS[timeOfDayOptionValue].label : game.time_label,
               };
 
-              // Create game event (also auto-joins creator)
               const gameId = await createGameEvent(gameData);
-
-              console.log('Game posted from history successfully:', gameId);
 
               Alert.alert(
                 'Success!',
@@ -361,7 +304,6 @@ export const PostGameScreen: React.FC = () => {
             } catch (error) {
               console.error('Error posting game from history:', error);
               
-              // Check if it's a network error
               const isNetworkError = error instanceof Error && (
                 error.message.includes('network') ||
                 error.message.includes('fetch') ||
@@ -374,18 +316,10 @@ export const PostGameScreen: React.FC = () => {
                 Alert.alert(
                   'Connection Error',
                   'Unable to connect to the server. Please check your internet connection and try again.',
-                  [
-                    { text: 'OK' }
-                  ]
+                  [{ text: 'OK' }]
                 );
               } else {
-                Alert.alert(
-                  'Error',
-                  'Failed to post game. Please try again.',
-                  [
-                    { text: 'OK' }
-                  ]
-                );
+                Alert.alert('Error', 'Failed to post game. Please try again.', [{ text: 'OK' }]);
               }
             } finally {
               setSubmitting(false);
@@ -396,74 +330,60 @@ export const PostGameScreen: React.FC = () => {
     );
   };
 
-  // Format time for display in history cards
-  // These are presets/templates, so show the actual time that was set, not relative time
   const formatHistoryTime = (dateString: string, timeType: TimeType, timeLabel: string | null): string => {
-    if (timeType === 'now') {
-      return 'Now';
-    }
-    
+    if (timeType === 'now') return 'Now';
     if (timeType === 'time_of_day' && timeLabel) {
-      return timeLabel;
+      // Check if time_label already contains "Tomorrow" (e.g., "Tomorrow Morning")
+      if (timeLabel.toLowerCase().includes('tomorrow')) {
+        return timeLabel;
+      }
+      // Otherwise, check if the scheduled time is today or tomorrow
+      const dayLabel = getDayLabel(dateString);
+      return dayLabel ? `${dayLabel} ${timeLabel}` : timeLabel;
     }
-    
-    // For precise times, show the actual time that was set (e.g., "8:00 AM")
     if (timeType === 'precise') {
       const date = new Date(dateString);
-      return date.toLocaleTimeString([], { 
+      const dayLabel = getDayLabel(dateString);
+      const timeString = date.toLocaleTimeString([], { 
         hour: 'numeric', 
         minute: '2-digit',
         hour12: true 
       });
+      return dayLabel ? `${dayLabel} at ${timeString}` : timeString;
     }
-    
     return timeLabel || timeType;
   };
 
-  // Get day label (Today/Tomorrow) for a scheduled time
   const getDayLabel = (dateString: string): 'Today' | 'Tomorrow' | null => {
     const date = new Date(dateString);
     const now = new Date();
     
-    // Check if it's today (same calendar day)
     const isToday = date.getFullYear() === now.getFullYear() &&
                      date.getMonth() === now.getMonth() &&
                      date.getDate() === now.getDate();
     
-    if (isToday) {
-      return 'Today';
-    }
+    if (isToday) return 'Today';
     
-    // Check if it's tomorrow (next calendar day)
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const isTomorrow = date.getFullYear() === tomorrow.getFullYear() &&
                         date.getMonth() === tomorrow.getMonth() &&
                         date.getDate() === tomorrow.getDate();
     
-    if (isTomorrow) {
-      return 'Tomorrow';
-    }
-    
-    return null; // Beyond tomorrow
+    if (isTomorrow) return 'Tomorrow';
+    return null;
   };
 
-  // Check if a game's scheduled time is less than 45 minutes away
-  // For previous posts (presets), calculate when that time would occur next
   const isTimeTooClose = (dateString: string, timeType: TimeType): boolean => {
-    if (timeType === 'now') {
-      return true; // "Now" is always too close
-    }
+    if (timeType === 'now') return true;
     
     const now = new Date();
     const originalDate = new Date(dateString);
     
     if (timeType === 'precise') {
-      // For precise times, calculate when this time would occur next (today or tomorrow)
       const nextOccurrence = new Date(now);
       nextOccurrence.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
       
-      // If that time has passed today, set it for tomorrow
       if (nextOccurrence <= now) {
         nextOccurrence.setDate(nextOccurrence.getDate() + 1);
       }
@@ -472,13 +392,8 @@ export const PostGameScreen: React.FC = () => {
       return diffInMinutes < 45;
     }
     
-    // For time_of_day, check if the scheduled_time (when it would occur next) is less than 45 minutes away
-    // We'll use the original scheduled_time and check if it's in the past, then calculate next occurrence
     const nextOccurrence = new Date(originalDate);
     if (nextOccurrence <= now) {
-      // If the original time was in the past, we can't easily determine the next occurrence
-      // without knowing the time_of_day option, so we'll be conservative and allow it
-      // (The user can still reuse it, and the TimeSelector will handle the validation)
       return false;
     }
     
@@ -491,26 +406,34 @@ export const PostGameScreen: React.FC = () => {
     if (currentStep !== 1 || loading) return null;
 
     return (
-      <View style={styles.historyContainer}>
+      <View style={styles.historySection}>
         <TouchableOpacity
           style={styles.historyHeader}
           onPress={() => {
             if (historyExpanded) {
               setHistoryExpanded(false);
             } else {
-              // Expand immediately to show loading spinner
               setHistoryExpanded(true);
               if (gameHistory.length === 0) {
                 loadHistory();
               }
             }
           }}
+          activeOpacity={0.7}
         >
-          <Text style={styles.historyTitle}>
-            {historyExpanded ? '▼' : '▶'} Previous Posts
-          </Text>
+          <View style={styles.historyHeaderContent}>
+            <View style={styles.historyHeaderLeft}>
+              <Calendar size={20} color={Colors.primary} strokeWidth={2} />
+              <Text style={styles.historyTitle}>Previous Posts</Text>
+            </View>
+            <ChevronRight 
+              size={20} 
+              color={Colors.textSecondary} 
+              style={[styles.historyChevron, historyExpanded && styles.historyChevronExpanded]}
+            />
+          </View>
           <Text style={styles.historySubtitle}>
-            Tap to {historyExpanded ? 'hide' : 'view'} and post again
+            {historyExpanded ? 'Tap to collapse' : 'Tap to view and reuse your previous game posts'}
           </Text>
         </TouchableOpacity>
 
@@ -522,9 +445,17 @@ export const PostGameScreen: React.FC = () => {
                 <Text style={styles.historyLoaderText}>Loading previous posts...</Text>
               </View>
             ) : gameHistory.length === 0 ? (
-              <Text style={styles.historyEmpty}>No previous posts found.</Text>
+              <View style={styles.historyEmptyContainer}>
+                <Text style={styles.historyEmpty}>No previous posts found.</Text>
+                <Text style={styles.historyEmptySubtext}>Create your first game to get started!</Text>
+              </View>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScroll}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                style={styles.historyScroll}
+                contentContainerStyle={styles.historyScrollContent}
+              >
                 {gameHistory.map((game) => {
                   const tooClose = isTimeTooClose(game.scheduled_time, game.time_type);
                   return (
@@ -534,87 +465,54 @@ export const PostGameScreen: React.FC = () => {
                         styles.historyCard,
                         tooClose && styles.historyCardDisabled
                       ]}
-                      onPress={() => handlePostFromHistory(game)}
+                      onPress={() => !tooClose && handlePostFromHistory(game)}
                       disabled={tooClose}
+                      activeOpacity={0.7}
                     >
                       <View style={styles.historyCardHeader}>
-                        <Text style={[
-                          styles.historyCardIcon,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>{game.sport?.icon || '🏃'}</Text>
+                        <SportIcon sport={game.sport} size={24} />
                         <Text style={[
                           styles.historyCardSport,
                           tooClose && styles.historyCardTextDisabled
-                        ]}>{game.sport?.name}</Text>
-                      </View>
-                      <View style={styles.historyCardDivider} />
-                      <View style={styles.historyCardDetail}>
-                        <Text style={[
-                          styles.historyCardLabel,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>👥 Players:</Text>
-                        <Text style={[
-                          styles.historyCardValue,
-                          tooClose && styles.historyCardTextDisabled
                         ]}>
-                          {game.min_players}-{game.max_players}
+                          {game.sport?.name}
                         </Text>
                       </View>
-                      <View style={styles.historyCardDetail}>
-                        <Text style={[
-                          styles.historyCardLabel,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>📊 Skill:</Text>
-                        <Text style={[
-                          styles.historyCardValue,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>
-                          {(() => {
-                            // Debug: Log the actual values
-                            console.log('Rendering skill for game:', game.id, {
-                              skill_level_min: game.skill_level_min,
-                              skill_level_max: game.skill_level_max,
-                              min_label: game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min as SkillLevel] : null,
-                              max_label: game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max as SkillLevel] : null,
-                            });
-                            
-                            if (game.skill_level_min || game.skill_level_max) {
-                              const minLabel = game.skill_level_min 
-                                ? SKILL_LEVEL_LABELS[game.skill_level_min as SkillLevel] 
-                                : 'Any';
-                              const maxLabel = game.skill_level_max 
-                                ? SKILL_LEVEL_LABELS[game.skill_level_max as SkillLevel] 
-                                : 'Any';
-                              return `${minLabel} - ${maxLabel}`;
-                            }
-                            return 'Any';
-                          })()}
-                        </Text>
+                      
+                      <View style={styles.historyCardDetails}>
+                        <View style={styles.historyCardRow}>
+                          <Users size={14} color={Colors.textSecondary} strokeWidth={2} />
+                          <Text style={[
+                            styles.historyCardValue,
+                            tooClose && styles.historyCardTextDisabled
+                          ]}>
+                            {game.min_players}-{game.max_players} players
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.historyCardRow}>
+                          <BarChart3 size={14} color={Colors.textSecondary} strokeWidth={2} />
+                          <Text style={[
+                            styles.historyCardValue,
+                            tooClose && styles.historyCardTextDisabled
+                          ]}>
+                            {game.skill_level_min && game.skill_level_max
+                              ? `${SKILL_LEVEL_LABELS[game.skill_level_min as SkillLevel]} - ${SKILL_LEVEL_LABELS[game.skill_level_max as SkillLevel]}`
+                              : 'All levels'}
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.historyCardRow}>
+                          <Clock size={14} color={Colors.textSecondary} strokeWidth={2} />
+                          <Text style={[
+                            styles.historyCardValue,
+                            tooClose && styles.historyCardTextDisabled
+                          ]}>
+                            {formatHistoryTime(game.scheduled_time, game.time_type, game.time_label)}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.historyCardDetail}>
-                        <Text style={[
-                          styles.historyCardLabel,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>📅 Day:</Text>
-                        <Text style={[
-                          styles.historyCardValue,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>
-                          {getDayLabel(game.scheduled_time) || 'Later'}
-                        </Text>
-                      </View>
-                      <View style={styles.historyCardDetail}>
-                        <Text style={[
-                          styles.historyCardLabel,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>⏰ Time:</Text>
-                        <Text style={[
-                          styles.historyCardValue,
-                          tooClose && styles.historyCardTextDisabled
-                        ]}>
-                          {formatHistoryTime(game.scheduled_time, game.time_type, game.time_label)}
-                        </Text>
-                      </View>
+                      
                       <View style={styles.historyCardFooter}>
                         <Text style={[
                           styles.historyCardAction,
@@ -638,7 +536,7 @@ export const PostGameScreen: React.FC = () => {
   const renderStepIndicator = () => {
     const steps = [
       { number: 1, label: 'Sport', canNavigate: true },
-      { number: 2, label: 'Players', canNavigate: selectedSportId !== null },
+      { number: 2, label: 'Players & Skill', canNavigate: selectedSportId !== null },
       { number: 3, label: 'Time', canNavigate: selectedSportId !== null },
     ];
 
@@ -650,6 +548,7 @@ export const PostGameScreen: React.FC = () => {
               style={styles.stepItem}
               onPress={() => handleStepClick(step.number)}
               disabled={!step.canNavigate}
+              activeOpacity={0.7}
             >
               <View
                 style={[
@@ -659,15 +558,19 @@ export const PostGameScreen: React.FC = () => {
                   !step.canNavigate && styles.stepCircleDisabled,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.stepNumber,
-                    (step.number === currentStep || step.number < currentStep) &&
-                      styles.stepNumberActive,
-                  ]}
-                >
-                  {step.number}
-                </Text>
+                {step.number < currentStep ? (
+                  <Check size={16} color={Colors.textInverse} strokeWidth={3} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.stepNumber,
+                      (step.number === currentStep || step.number < currentStep) &&
+                        styles.stepNumberActive,
+                    ]}
+                  >
+                    {step.number}
+                  </Text>
+                )}
               </View>
               <Text
                 style={[
@@ -753,35 +656,53 @@ export const PostGameScreen: React.FC = () => {
         title="Post a Game"
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: handleBack,
         }}
       />
 
-      {renderStepIndicator()}
+      {/* Step Indicator */}
+      <Card style={styles.stepIndicatorCard}>
+        {renderStepIndicator()}
+      </Card>
 
-      {/* History section - only on step 1 */}
-      {renderHistory()}
+      {/* Step content with history (for step 1) */}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* History section - only on step 1 */}
+        {currentStep === 1 && renderHistory()}
+        
+        {/* Step content */}
+        {renderStepContent()}
+      </ScrollView>
 
-      {/* Step content */}
-      <View style={styles.content}>{renderStepContent()}</View>
-
-      {/* Navigation buttons - only show if not on step 1 (step 1 auto-advances) */}
+      {/* Navigation buttons */}
       {currentStep > 1 && !loading && (
-        <View style={styles.footer}>
-          <Button
-            title="Back"
-            onPress={handleBack}
-            variant="outline"
-            style={styles.footerButton}
-            disabled={submitting}
-          />
-          <Button
-            title={currentStep === 3 ? (submitting ? 'Posting...' : 'Post Game') : 'Next'}
-            onPress={handleNext}
-            style={styles.footerButton}
-            disabled={submitting}
-          />
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+          <View style={styles.footerButtonLeft}>
+            <Button
+              title="Back"
+              onPress={handleBack}
+              variant="outline"
+              size="medium"
+              fullWidth
+              disabled={submitting}
+            />
+          </View>
+          <View style={styles.footerButtonRight}>
+            <Button
+              title={currentStep === 3 ? (submitting ? 'Posting...' : 'Post Game') : 'Next'}
+              onPress={handleNext}
+              size="medium"
+              fullWidth
+              disabled={submitting}
+              loading={submitting && currentStep === 3}
+              rightIcon={currentStep === 3 && !submitting ? ChevronRight : undefined}
+            />
+          </View>
         </View>
       )}
     </View>
@@ -791,44 +712,57 @@ export const PostGameScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xl,
+  },
+  // Step Indicator
+  stepIndicatorCard: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
   },
   stepIndicatorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.lg,
-    backgroundColor: Colors.background,
   },
   stepItem: {
     alignItems: 'center',
     flex: 0,
   },
   stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.backgroundTertiary,
     borderWidth: 2,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   stepCircleActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+    ...Shadows.small,
   },
   stepCircleCompleted: {
     backgroundColor: Colors.success,
     borderColor: Colors.success,
   },
   stepCircleDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   stepNumber: {
-    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textSecondary,
   },
@@ -836,98 +770,115 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
   },
   stepLabel: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
+    textAlign: 'center',
   },
   stepLabelActive: {
+    fontFamily: Typography.fontFamily.semibold,
     color: Colors.primary,
     fontWeight: Typography.fontWeight.semibold,
   },
   stepLabelDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: 3,
     backgroundColor: Colors.border,
-    marginHorizontal: Spacing.xs,
-    marginBottom: 18,
+    marginHorizontal: Spacing.sm,
+    marginBottom: 20,
+    borderRadius: 2,
   },
   stepLineCompleted: {
     backgroundColor: Colors.success,
   },
-  content: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  loadingText: {
-    marginTop: Spacing.md,
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: Spacing.md,
-    backgroundColor: Colors.background,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    gap: Spacing.md,
-  },
-  footerButton: {
-    flex: 1,
-  },
-  historyContainer: {
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  // History Section
+  historySection: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    ...Shadows.small,
   },
   historyHeader: {
     padding: Spacing.md,
   },
+  historyHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  historyHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   historyTitle: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
-    marginBottom: Spacing.xs,
   },
   historySubtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
   },
+  historyChevron: {
+    transform: [{ rotate: '-90deg' }],
+  },
+  historyChevronExpanded: {
+    transform: [{ rotate: '90deg' }],
+  },
   historyContent: {
-    paddingBottom: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
   },
   historyLoaderContainer: {
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
   },
   historyLoaderText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
-    marginTop: Spacing.xs,
+  },
+  historyEmptyContainer: {
+    paddingVertical: Spacing.xl,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
   },
   historyEmpty: {
-    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
-    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.xs,
+  },
+  historyEmptySubtext: {
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textTertiary,
+    textAlign: 'center',
   },
   historyScroll: {
-    paddingLeft: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  historyScrollContent: {
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
   },
   historyCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    marginRight: Spacing.sm,
-    width: 180,
+    width: 200,
     borderWidth: 2,
     borderColor: Colors.border,
     ...Shadows.small,
@@ -935,56 +886,83 @@ const styles = StyleSheet.create({
   historyCardDisabled: {
     opacity: 0.5,
     backgroundColor: Colors.backgroundTertiary,
+    borderColor: Colors.borderLight,
   },
   historyCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  historyCardIcon: {
-    fontSize: 24,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
   },
   historyCardSport: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     flex: 1,
   },
-  historyCardDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginBottom: Spacing.sm,
+  historyCardDetails: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  historyCardDetail: {
+  historyCardRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  historyCardLabel: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
-    flex: 1,
+    gap: Spacing.xs,
   },
   historyCardValue: {
-    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Typography.fontSize.sm,
     color: Colors.text,
-    fontWeight: Typography.fontWeight.semibold,
+    flex: 1,
   },
   historyCardFooter: {
-    marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: Colors.borderLight,
   },
   historyCardAction: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xs,
     color: Colors.primary,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     textAlign: 'center',
   },
   historyCardTextDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
+  },
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  loadingText: {
+    fontFamily: Typography.fontFamily.regular,
+    marginTop: Spacing.md,
+    fontSize: Typography.fontSize.md,
+    color: Colors.textSecondary,
+  },
+  // Footer
+  footer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.md,
+    alignItems: 'stretch',
+    ...Shadows.medium,
+  },
+  footerButtonLeft: {
+    flex: 1,
+  },
+  footerButtonRight: {
+    flex: 1,
   },
 });

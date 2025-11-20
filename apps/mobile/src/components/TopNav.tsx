@@ -1,17 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Spacing, Typography, Shadows } from '../theme';
+import { Colors, Spacing, Typography, Shadows, BorderRadius } from '../theme';
+import type { LucideIcon } from 'lucide-react-native';
 
 interface TopNavProps {
   title: string;
   subtitle?: string;
   leftAction?: {
-    icon: string;
+    icon: LucideIcon;
     onPress: () => void;
   };
   rightAction?: {
-    icon: string;
+    icon?: LucideIcon;
     onPress: () => void;
     label?: string;
   };
@@ -36,8 +37,12 @@ export const TopNav: React.FC<TopNavProps> = ({
             {/* Left Action */}
             <View style={styles.actionContainer}>
               {leftAction && (
-                <TouchableOpacity onPress={leftAction.onPress} style={styles.actionButton}>
-                  <Text style={styles.actionIcon}>{leftAction.icon}</Text>
+                <TouchableOpacity 
+                  onPress={leftAction.onPress} 
+                  style={styles.actionButton}
+                  activeOpacity={0.7}
+                >
+                  <leftAction.icon size={24} color={Colors.text} strokeWidth={2} />
                 </TouchableOpacity>
               )}
             </View>
@@ -50,9 +55,13 @@ export const TopNav: React.FC<TopNavProps> = ({
 
             {/* Right Action */}
             <View style={styles.actionContainer}>
-              {rightAction && (
-                <TouchableOpacity onPress={rightAction.onPress} style={styles.actionButton}>
-                  <Text style={styles.actionIcon}>{rightAction.icon}</Text>
+              {rightAction && rightAction.icon && (
+                <TouchableOpacity 
+                  onPress={rightAction.onPress} 
+                  style={styles.actionButton}
+                  activeOpacity={0.7}
+                >
+                  <rightAction.icon size={24} color={Colors.text} strokeWidth={2} />
                 </TouchableOpacity>
               )}
             </View>
@@ -62,8 +71,12 @@ export const TopNav: React.FC<TopNavProps> = ({
             {/* Title on Left */}
             <View style={styles.titleContainerLeft}>
               {leftAction && (
-                <TouchableOpacity onPress={leftAction.onPress} style={styles.actionButtonLeft}>
-                  <Text style={styles.actionIcon}>{leftAction.icon}</Text>
+                <TouchableOpacity 
+                  onPress={leftAction.onPress} 
+                  style={styles.actionButtonLeft}
+                  activeOpacity={0.7}
+                >
+                  <leftAction.icon size={24} color={Colors.text} strokeWidth={2} />
                 </TouchableOpacity>
               )}
               <View>
@@ -74,14 +87,18 @@ export const TopNav: React.FC<TopNavProps> = ({
 
             {/* Right Action (Profile) */}
             {rightAction && (
-              <TouchableOpacity onPress={rightAction.onPress} style={styles.profileButton}>
+              <TouchableOpacity 
+                onPress={rightAction.onPress} 
+                style={styles.profileButton}
+                activeOpacity={0.7}
+              >
                 {rightAction.label ? (
                   <View style={styles.profileAvatar}>
                     <Text style={styles.profileAvatarText}>{rightAction.label}</Text>
                   </View>
-                ) : (
-                  <Text style={styles.actionIcon}>{rightAction.icon}</Text>
-                )}
+                ) : rightAction.icon ? (
+                  <rightAction.icon size={24} color={Colors.text} strokeWidth={2} />
+                ) : null}
               </TouchableOpacity>
             )}
           </>
@@ -103,7 +120,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.borderLight,
   },
   // Centered layout styles
   titleContainer: {
@@ -112,11 +129,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
   title: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
   },
   subtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
     marginTop: 2,
@@ -127,9 +146,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: Spacing.xs,
-  },
-  actionIcon: {
-    fontSize: 24,
+    borderRadius: BorderRadius.md,
   },
   // Left-aligned layout styles
   titleContainerLeft: {
@@ -139,12 +156,14 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   titleLeft: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   subtitleLeft: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
     marginTop: 2,
@@ -158,13 +177,14 @@ const styles = StyleSheet.create({
   profileAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: BorderRadius.full,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.small,
   },
   profileAvatarText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,

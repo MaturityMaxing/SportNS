@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { ArrowLeft } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { TopNav } from '../components';
 import { getGameById } from '../services/games';
@@ -72,7 +73,7 @@ export const PlayersListScreen: React.FC = () => {
         title={`Players (${game?.current_players || 0})`}
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: () => navigation.goBack(),
         }}
       />
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   loadingText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
@@ -152,6 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   playerAvatarText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
@@ -160,6 +163,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
@@ -173,11 +177,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   creatorBadgeText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primaryDark,
   },
   noPlayersText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     fontStyle: 'italic',

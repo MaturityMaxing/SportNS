@@ -93,6 +93,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   sectionTitle: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
@@ -106,10 +107,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   summaryText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
   },
   summaryHighlight: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
@@ -123,6 +126,7 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.info,
   },
   helperText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
   },

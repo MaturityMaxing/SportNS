@@ -28,7 +28,7 @@ export const useNotifications = () => {
         if (user) {
           await savePushToken(user.id, token || null);
           if (token) {
-            console.log('✅ Push token registered:', token.substring(0, 20) + '...');
+            console.log('Push token registered:', token.substring(0, 20) + '...');
           } else {
             console.info('ℹ️ Running without push token (local notifications will still work)');
           }
@@ -36,7 +36,7 @@ export const useNotifications = () => {
       } catch (error) {
         // This is expected in Expo Go - push notifications require development builds
         console.info('ℹ️ Push notification setup completed (local notifications ready)');
-        console.info('✅ All notification features are working correctly');
+        console.info('All notification features are working correctly');
       }
     };
 
@@ -53,11 +53,11 @@ export const useNotifications = () => {
       // Handle specific notification types
       const data = notification.request.content.data;
       if (data?.type === 'game_reminder') {
-        console.log('⏰ Game reminder notification received');
+        console.log('Game reminder notification received');
       } else if (data?.type === 'player_joined') {
-        console.log('👥 Player joined notification received');
+        console.log('Player joined notification received');
       } else if (data?.type === 'chat_message') {
-        console.log('💬 Chat message notification received');
+        console.log('Chat message notification received');
       }
     });
 

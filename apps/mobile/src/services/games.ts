@@ -498,7 +498,6 @@ export const endGame = async (gameId: string): Promise<void> => {
  */
 export const generateShareText = (game: GameEventWithDetails): string => {
   const sportName = game.sport?.name || 'Sport';
-  const sportIcon = game.sport?.icon || '🏃';
   const timeString = new Date(game.scheduled_time).toLocaleString([], {
     month: 'short',
     day: 'numeric',
@@ -506,16 +505,16 @@ export const generateShareText = (game: GameEventWithDetails): string => {
     minute: '2-digit',
   });
   
-  let shareText = `${sportIcon} ${sportName} Game\n`;
-  shareText += `📅 ${timeString}\n`;
-  shareText += `👥 ${game.current_players}/${game.max_players} players`;
+  let shareText = `${sportName} Game\n`;
+  shareText += `Time: ${timeString}\n`;
+  shareText += `Players: ${game.current_players}/${game.max_players}`;
   
   if (game.min_players > 0) {
     shareText += ` (min ${game.min_players})`;
   }
   
   if (game.skill_level_min || game.skill_level_max) {
-    shareText += `\n📊 Skill: ${game.skill_level_min || 'Any'} to ${game.skill_level_max || 'Any'}`;
+    shareText += `\nSkill Level: ${game.skill_level_min || 'Any'} to ${game.skill_level_max || 'Any'}`;
   }
   
   shareText += `\n\nJoin via NS Sports app!`;

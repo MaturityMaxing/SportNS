@@ -8,6 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Zap, Trophy, Target, BarChart3, MessageCircle } from 'lucide-react-native';
+import { SportIcon } from '../components/SportIcon';
 import { signInWithDiscord } from '../services/auth';
 
 /**
@@ -35,7 +37,9 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.logo}>🏀</Text>
+        <View style={styles.logoContainer}>
+          <SportIcon sport={{ slug: 'basketball' }} size={64} color="#fff" />
+        </View>
         <Text style={styles.title}>SportNS</Text>
         <Text style={styles.subtitle}>Community Sports Platform</Text>
       </View>
@@ -47,10 +51,10 @@ export default function LoginScreen() {
         </Text>
 
         <View style={styles.features}>
-          <FeatureItem icon="⚡" text="Real-time availability tracking" />
-          <FeatureItem icon="🏆" text="Competitive ELO rankings" />
-          <FeatureItem icon="⚽" text="Challenge other players" />
-          <FeatureItem icon="📊" text="Track your performance" />
+          <FeatureItem icon={Zap} text="Real-time availability tracking" />
+          <FeatureItem icon={Trophy} text="Competitive ELO rankings" />
+          <FeatureItem icon={Target} text="Challenge other players" />
+          <FeatureItem icon={BarChart3} text="Track your performance" />
         </View>
       </View>
 
@@ -64,7 +68,7 @@ export default function LoginScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.discordIcon}>💬</Text>
+              <MessageCircle size={24} color="#fff" style={styles.discordIcon} />
               <Text style={styles.buttonText}>Sign in with Discord</Text>
             </>
           )}
@@ -79,14 +83,14 @@ export default function LoginScreen() {
 }
 
 interface FeatureItemProps {
-  icon: string;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
   text: string;
 }
 
-function FeatureItem({ icon, text }: FeatureItemProps) {
+function FeatureItem({ icon: Icon, text }: FeatureItemProps) {
   return (
     <View style={styles.featureItem}>
-      <Text style={styles.featureIcon}>{icon}</Text>
+      <Icon size={24} color="#333" style={styles.featureIcon} />
       <Text style={styles.featureText}>{text}</Text>
     </View>
   );
@@ -102,6 +106,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: 'center',
     backgroundColor: '#5865F2',
+  },
+  logoContainer: {
+    marginBottom: 10,
   },
   logo: {
     fontSize: 64,
@@ -140,7 +147,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   featureIcon: {
-    fontSize: 24,
     marginRight: 12,
   },
   featureText: {
@@ -170,7 +176,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   discordIcon: {
-    fontSize: 24,
     marginRight: 12,
   },
   buttonText: {

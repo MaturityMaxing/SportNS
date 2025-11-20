@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useNavigation } from '@react-navigation/native';
+import { ArrowLeft } from 'lucide-react-native';
 import { getCurrentUser, getSkillLevels, saveSkillLevels, getSports } from '../services/auth';
 import type { Sport, SkillLevel } from '../types';
 import { SKILL_LEVEL_LABELS, SKILL_LEVEL_DESCRIPTIONS, SKILL_LEVELS } from '../types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { Button, TopNav } from '../components';
+import { Button, TopNav, SportIcon } from '../components';
 
 /**
  * ReEvaluateSkillsScreen - Full screen for updating skill levels
@@ -118,7 +119,7 @@ export const ReEvaluateSkillsScreen: React.FC = () => {
         title="Re-evaluate Skills"
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: () => navigation.goBack(),
         }}
       />
@@ -135,7 +136,7 @@ export const ReEvaluateSkillsScreen: React.FC = () => {
         title="Re-evaluate Skills"
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: () => navigation.goBack(),
         }}
       />
@@ -182,7 +183,7 @@ function SkillEvaluationCard({ sport, value, onChange }: SkillEvaluationCardProp
     <View style={[styles.sportCard, hasSelection && styles.sportCardSelected]}>
       <View style={styles.sportHeader}>
         <View style={styles.sportTitleRow}>
-          <Text style={styles.sportIcon}>{sport.icon || '🏃'}</Text>
+          <SportIcon sport={sport} size={24} />
           <Text style={styles.sportName}>{sport.name}</Text>
         </View>
         {currentSkill && (
@@ -249,10 +250,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
   },
   description: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     marginBottom: Spacing.lg,
@@ -288,10 +291,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  sportIcon: {
-    fontSize: 28,
-  },
   sportName: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
@@ -303,6 +304,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   skillBadgeText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
@@ -324,15 +326,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   labelText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textTertiary,
     textAlign: 'center',
   },
   labelTextActive: {
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.primary,
     fontWeight: Typography.fontWeight.bold,
   },
   skillDescription: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     fontStyle: 'italic',

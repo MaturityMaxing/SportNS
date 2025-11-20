@@ -62,7 +62,7 @@ export const registerForPushNotificationsAsync = async () => {
 
     if (isExpoGo) {
       console.info('ℹ️ Running in Expo Go - push notifications require development build');
-      console.info('✅ Local notifications will still work perfectly');
+      console.info('Local notifications will still work perfectly');
       return null;
     }
 
@@ -187,7 +187,7 @@ export const scheduleLocalNotification = async (
       } : null,
     });
     
-    console.log('✅ Notification scheduled with ID:', notificationId);
+    console.log('Notification scheduled with ID:', notificationId);
     return notificationId;
   } catch (error) {
     console.error('❌ Failed to schedule notification:', error);

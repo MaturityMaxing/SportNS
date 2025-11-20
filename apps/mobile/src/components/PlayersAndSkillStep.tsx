@@ -79,12 +79,14 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
   },
   title: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: 4,
   },
   subtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     marginBottom: Spacing.md,

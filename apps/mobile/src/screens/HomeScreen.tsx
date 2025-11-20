@@ -1,8 +1,9 @@
 import React from 'react';
-import { Text, TextStyle } from 'react-native';
+import { TextStyle } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClipboardList, Home, Trophy } from 'lucide-react-native';
 import { MyGamesScreen } from './MyGamesScreen';
 import { DashboardScreen } from './DashboardScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
@@ -34,13 +35,15 @@ const MainTabs: React.FC = () => {
         tabBarInactiveTintColor: Colors.textSecondary,
         tabBarStyle: {
           backgroundColor: Colors.surface,
-          borderTopColor: Colors.border,
+          borderTopColor: Colors.borderLight,
           borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 8,
+          elevation: 0,
         },
         tabBarLabelStyle: {
+          fontFamily: Typography.fontFamily.medium,
           fontSize: Typography.fontSize.xs,
           fontWeight: '500' as TextStyle['fontWeight'],
         },
@@ -51,7 +54,7 @@ const MainTabs: React.FC = () => {
         component={MyGamesScreen}
         options={{
           tabBarLabel: 'My Games',
-          tabBarIcon: ({ color }) => <TabIcon icon="📋" color={color} />,
+          tabBarIcon: ({ color, size }) => <ClipboardList size={size || 24} color={color} strokeWidth={2} />,
         }}
       />
       <Tab.Screen
@@ -59,7 +62,7 @@ const MainTabs: React.FC = () => {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ color }) => <TabIcon icon="⚽" color={color} />,
+          tabBarIcon: ({ color, size }) => <Home size={size || 24} color={color} strokeWidth={2} />,
         }}
       />
       <Tab.Screen
@@ -67,7 +70,7 @@ const MainTabs: React.FC = () => {
         component={LeaderboardsScreen}
         options={{
           tabBarLabel: 'Leagues',
-          tabBarIcon: ({ color }) => <TabIcon icon="🏆" color={color} />,
+          tabBarIcon: ({ color, size }) => <Trophy size={size || 24} color={color} strokeWidth={2} />,
         }}
       />
     </Tab.Navigator>
@@ -99,13 +102,4 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-// Simple emoji-based icon component
-interface TabIconProps {
-  icon: string;
-  color: string;
-}
-
-const TabIcon: React.FC<TabIconProps> = ({ icon }) => {
-  return <Text style={{ fontSize: 24 }}>{icon}</Text>;
-};
 

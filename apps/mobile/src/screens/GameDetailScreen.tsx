@@ -15,8 +15,22 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { 
+  ArrowLeft, 
+  XCircle, 
+  Clock, 
+  Users, 
+  BarChart3, 
+  Share2, 
+  LogOut, 
+  Flag, 
+  CheckCircle2,
+  Hourglass,
+  Send,
+  ChevronRight
+} from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { TopNav, Card, EmptyState } from '../components';
+import { TopNav, Card, EmptyState, SportIcon } from '../components';
 import {
   getGameById,
   leaveGame,
@@ -28,11 +42,6 @@ import {
   subscribeToParticipantUpdates,
 } from '../services/games';
 import { getCurrentUser } from '../services/auth';
-import {
-  scheduleChatMessageNotification,
-  schedulePlayerJoinedNotification,
-  getNotificationSettings,
-} from '../services/notifications';
 import type { GameEventWithDetails, GameChatMessageWithSender } from '../types';
 import { SKILL_LEVEL_LABELS } from '../types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -47,7 +56,7 @@ type GameDetailRouteParams = {
  * GameDetailScreen - Detailed view of a game with chat and actions
  */
 export const GameDetailScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<GameDetailRouteParams, 'GameDetail'>>();
   const { gameId } = route.params;
 
@@ -65,7 +74,7 @@ export const GameDetailScreen: React.FC = () => {
   const participantChannelRef = useRef<RealtimeChannel | null>(null);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const chatScrollViewRef = useRef<ScrollView | null>(null);
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadData();
@@ -86,9 +95,9 @@ export const GameDetailScreen: React.FC = () => {
 
   useEffect(() => {
     // Setup real-time subscriptions after initial load
-    console.log('🔄 Subscription useEffect triggered. game:', !!game, 'userId:', !!currentUserId);
+    console.log('Subscription useEffect triggered. game:', !!game, 'userId:', !!currentUserId);
     if (game && currentUserId) {
-      console.log('✅ Calling setupRealtimeSubscriptions()');
+      console.log('Calling setupRealtimeSubscriptions()');
       setupRealtimeSubscriptions();
     } else {
       console.log('❌ Not setting up subscriptions yet - waiting for game and userId');
@@ -156,7 +165,7 @@ export const GameDetailScreen: React.FC = () => {
       if (currentUserId && message.sender_id !== currentUserId) {
         // Notifications are now handled server-side via Supabase Edge Functions
         // We don't need to schedule local notifications here to avoid duplicates
-        console.log('💬 Message received from', message.sender_username);
+        console.log('Message received from', message.sender_username);
       } else {
         console.log('ℹ️ Message from current user');
       }
@@ -164,7 +173,7 @@ export const GameDetailScreen: React.FC = () => {
 
     // Subscribe to participant updates
     participantChannelRef.current = subscribeToParticipantUpdates(gameId, async () => {
-      console.log('👥 Participant subscription callback triggered!');
+      console.log('Participant subscription callback triggered!');
       const updatedGame = await getGameById(gameId);
       if (updatedGame) {
         const prevPlayerCount = game?.current_players || 0;
@@ -173,7 +182,7 @@ export const GameDetailScreen: React.FC = () => {
         // If a new player joined (not the current user)
         if (newPlayerCount > prevPlayerCount && currentUserId) {
            // Notifications are now handled server-side via Supabase Edge Functions
-           console.log('👥 New player joined');
+           console.log('New player joined');
         }
         
         setGame(updatedGame);
@@ -312,7 +321,7 @@ export const GameDetailScreen: React.FC = () => {
     const diffInHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (timeType === 'now') {
-      return 'Right now! 🏃‍♂️';
+      return 'Right now!';
     }
 
     if (diffInHours < 1) {
@@ -362,7 +371,7 @@ export const GameDetailScreen: React.FC = () => {
           title="Game Details"
           centered
           leftAction={{
-            icon: '←',
+            icon: ArrowLeft,
             onPress: () => navigation.goBack(),
           }}
         />
@@ -380,13 +389,13 @@ export const GameDetailScreen: React.FC = () => {
           title="Game Details"
           centered
           leftAction={{
-            icon: '←',
+            icon: ArrowLeft,
             onPress: () => navigation.goBack(),
           }}
         />
         <View style={styles.centerContainer}>
           <EmptyState
-            icon="❌"
+            icon={XCircle}
             title="Game Not Found"
             description="This game may have been deleted"
           />
@@ -403,7 +412,7 @@ export const GameDetailScreen: React.FC = () => {
         title="Game Details"
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: () => navigation.goBack(),
         }}
       />
@@ -424,10 +433,12 @@ export const GameDetailScreen: React.FC = () => {
           }
         >
         {/* Game Info Section */}
-        <Card style={styles.gameInfoCard}>
+        <Card style={styles.gameInfoCard} padding="md">
           <View style={styles.gameHeader}>
             <View style={styles.gameTitleRow}>
-              <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
+              <View style={styles.sportIconContainer}>
+                <SportIcon sport={game.sport} size={32} />
+              </View>
               <View style={styles.gameTitleContent}>
                 <Text style={styles.gameSportName}>{game.sport?.name || 'Sport'}</Text>
                 <Text style={styles.gameCreator}>
@@ -435,35 +446,38 @@ export const GameDetailScreen: React.FC = () => {
                 </Text>
               </View>
             </View>
-            <View style={[styles.statusBadge, isConfirmed && styles.statusBadgeConfirmed]}>
-              <Text style={styles.statusBadgeText}>
-                {isConfirmed ? '✓ Confirmed' : '⏳ Waiting'}
+            <View style={[styles.statusBadge, isConfirmed && styles.statusBadgeConfirmed, !isConfirmed && styles.statusBadgeWaiting]}>
+              {isConfirmed ? (
+                <CheckCircle2 size={14} color={Colors.textInverse} strokeWidth={2} />
+              ) : (
+                <Hourglass size={14} color={Colors.text} strokeWidth={2} />
+              )}
+              <Text style={[styles.statusBadgeText, !isConfirmed && styles.statusBadgeTextWaiting]}>
+                {isConfirmed ? 'Confirmed' : 'Waiting'}
               </Text>
             </View>
           </View>
 
           <View style={styles.gameDetails}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>⏰</Text>
+              <Clock size={16} color={Colors.textSecondary} strokeWidth={2} />
               <Text style={styles.detailText}>{formatTime(game.scheduled_time, game.time_type)}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>👥</Text>
+              <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
               <Text style={styles.detailText}>
                 {game.current_players}/{game.max_players} players
                 {game.min_players > 0 && ` (min ${game.min_players})`}
               </Text>
             </View>
-            {(game.skill_level_min || game.skill_level_max) && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>📊</Text>
-                <Text style={styles.detailText}>
-                  Skill: {game.skill_level_min && SKILL_LEVEL_LABELS[game.skill_level_min]}
-                  {game.skill_level_min && game.skill_level_max && ' - '}
-                  {game.skill_level_max && SKILL_LEVEL_LABELS[game.skill_level_max]}
-                </Text>
-              </View>
-            )}
+            <View style={styles.detailRow}>
+              <BarChart3 size={16} color={Colors.textSecondary} strokeWidth={2} />
+              <Text style={styles.detailText}>
+                {game.skill_level_min && game.skill_level_max
+                  ? `${SKILL_LEVEL_LABELS[game.skill_level_min]} - ${SKILL_LEVEL_LABELS[game.skill_level_max]}`
+                  : 'All levels'}
+              </Text>
+            </View>
           </View>
 
           {/* Action Buttons in Game Info */}
@@ -471,25 +485,28 @@ export const GameDetailScreen: React.FC = () => {
             <TouchableOpacity 
               style={styles.infoActionButton}
               onPress={handleShareGame}
+              activeOpacity={0.7}
             >
-              <Text style={styles.infoActionIcon}>📤</Text>
+              <Share2 size={16} color={Colors.primary} strokeWidth={2} />
               <Text style={styles.infoActionText}>Share</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.infoActionButton}
-              onPress={() => navigation.navigate('PlayersList' as never, { gameId } as never)}
+              onPress={() => navigation.navigate('PlayersList' as any, { gameId })}
+              activeOpacity={0.7}
             >
-              <Text style={styles.infoActionIcon}>👥</Text>
+              <Users size={16} color={Colors.primary} strokeWidth={2} />
               <Text style={styles.infoActionText}>
                 Players ({game.current_players})
               </Text>
+              <ChevronRight size={16} color={Colors.textSecondary} strokeWidth={2} />
             </TouchableOpacity>
           </View>
         </Card>
 
         {/* Chat Section */}
-        <Card style={styles.chatCard}>
+        <Card style={styles.chatCard} padding="md">
           <Text style={styles.sectionTitle}>Chat</Text>
 
           <ScrollView
@@ -540,18 +557,20 @@ export const GameDetailScreen: React.FC = () => {
                 // Scroll to bottom when focusing input
                 setTimeout(() => {
                   scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, 300);
+                  chatScrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 100);
               }}
             />
             <TouchableOpacity
               style={[styles.sendButton, (!newMessage.trim() || isSending) && styles.sendButtonDisabled]}
               onPress={handleSendMessage}
               disabled={!newMessage.trim() || isSending}
+              activeOpacity={0.7}
             >
               {isSending ? (
                 <ActivityIndicator color={Colors.textInverse} size="small" />
               ) : (
-                <Text style={styles.sendButtonText}>Send</Text>
+                <Send size={18} color={Colors.textInverse} strokeWidth={2} />
               )}
             </TouchableOpacity>
           </View>
@@ -562,16 +581,18 @@ export const GameDetailScreen: React.FC = () => {
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonDanger]}
             onPress={handleLeaveGame}
+            activeOpacity={0.7}
           >
-            <Text style={styles.actionButtonIcon}>🚪</Text>
+            <LogOut size={18} color={Colors.error} strokeWidth={2} />
             <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>Leave Game</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonWarning]}
             onPress={handleEndGame}
+            activeOpacity={0.7}
           >
-            <Text style={styles.actionButtonIcon}>🏁</Text>
+            <Flag size={18} color="#FFA500" strokeWidth={2} />
             <Text style={[styles.actionButtonText, styles.actionButtonTextWarning]}>End Game</Text>
           </TouchableOpacity>
         </View>
@@ -637,7 +658,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
   centerContainer: {
     flex: 1,
@@ -645,6 +666,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
   },
@@ -656,26 +678,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   gameTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
     flex: 1,
   },
   gameTitleContent: {
     flex: 1,
   },
-  sportIcon: {
-    fontSize: 32,
+  sportIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.md,
   },
   gameSportName: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
   },
   gameCreator: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
     marginTop: 2,
@@ -684,19 +713,31 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundTertiary,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   statusBadgeConfirmed: {
-    backgroundColor: Colors.available,
+    backgroundColor: Colors.success,
+  },
+  statusBadgeWaiting: {
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   statusBadgeText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,
   },
+  statusBadgeTextWaiting: {
+    color: Colors.text,
+  },
   gameDetails: {
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
@@ -706,9 +747,9 @@ const styles = StyleSheet.create({
   infoActionsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: Colors.borderLight,
   },
   infoActionButton: {
     flex: 1,
@@ -717,24 +758,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.xs,
     backgroundColor: Colors.backgroundSecondary,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  infoActionIcon: {
-    fontSize: 18,
+    borderColor: Colors.borderLight,
   },
   infoActionText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
   },
-  detailIcon: {
-    fontSize: 16,
-    width: 20,
-  },
   detailText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     flex: 1,
@@ -760,25 +796,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playersButtonTitle: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
   playersButtonSubtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
   },
   playersButtonArrow: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xxl,
     color: Colors.primary,
     fontWeight: Typography.fontWeight.bold,
   },
   sectionTitle: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   // Actions
   actionsSection: {
@@ -792,23 +832,20 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     backgroundColor: Colors.backgroundSecondary,
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
     ...Shadows.small,
   },
   actionButtonDanger: {
     backgroundColor: Colors.backgroundSecondary,
-    borderWidth: 1,
     borderColor: Colors.error,
   },
   actionButtonWarning: {
     backgroundColor: Colors.backgroundSecondary,
-    borderWidth: 1,
     borderColor: '#FFA500',
   },
-  actionButtonIcon: {
-    fontSize: 18,
-  },
   actionButtonText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
@@ -824,26 +861,27 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   chatMessagesScroll: {
-    minHeight: 180,
-    maxHeight: 650,
-    marginBottom: Spacing.md,
+    height: 240,
+    marginBottom: Spacing.sm,
   },
   chatMessages: {
     gap: Spacing.sm,
     paddingRight: Spacing.xs, // Space for scrollbar
   },
   noChatText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'center',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   chatMessage: {
     backgroundColor: Colors.backgroundSecondary,
     padding: Spacing.sm,
     borderRadius: BorderRadius.md,
     maxWidth: '80%',
+    minWidth: 120,
   },
   chatMessageOwn: {
     backgroundColor: Colors.primary,
@@ -856,6 +894,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   chatMessageSender: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text, // Default for other messages
@@ -864,6 +903,7 @@ const styles = StyleSheet.create({
     color: Colors.textInverse, // White for own messages
   },
   chatMessageTime: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary, // Default for other messages
   },
@@ -871,6 +911,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)', // Light for own messages
   },
   chatMessageText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.text, // Default for other messages
   },
@@ -884,7 +925,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.backgroundTertiary,
+    borderTopColor: Colors.borderLight,
   },
   chatInput: {
     flex: 1,
@@ -892,6 +933,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.text,
     maxHeight: 100,
@@ -900,22 +942,16 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 40,
-    minWidth: 70,
+    minWidth: 48,
   },
   sendButtonDisabled: {
-    backgroundColor: '#666666', // Medium gray for better contrast with white text
-    opacity: 1, // Remove opacity so text is fully visible
-  },
-  sendButtonText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: '#FFFFFF', // White text
+    opacity: 0.5,
   },
   // Modal
   modalOverlay: {
@@ -928,22 +964,24 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
+    padding: Spacing.lg,
     width: '100%',
     maxWidth: 400,
     ...Shadows.large,
   },
   modalTitle: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xxl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   modalMessage: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
     textAlign: 'center',
     lineHeight: Typography.lineHeight.relaxed * Typography.fontSize.md,
   },
@@ -953,7 +991,7 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -971,11 +1009,13 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   modalButtonText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
   },
   modalButtonTextEnd: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,

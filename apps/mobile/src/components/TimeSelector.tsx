@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { Calendar, Sunrise, Clock, AlertCircle, Lightbulb } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../theme';
 import { TIME_OF_DAY_OPTIONS, type TimeType, type TimeOfDayOption } from '../types';
 
@@ -198,24 +199,36 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
       contentContainerStyle={styles.contentContainer}
     >
       <Text style={styles.title}>When to Play?</Text>
-      <Text style={styles.subtitle}>Choose when the game should start</Text>
+      <Text style={styles.subtitle}>Select the day and time for your game</Text>
 
       {/* Day Selector */}
       <View style={styles.daySelector}>
         <TouchableOpacity
           style={[styles.dayButton, selectedDay === 'today' && styles.dayButtonActive]}
           onPress={() => setSelectedDay('today')}
+          activeOpacity={0.7}
         >
+          <Calendar 
+            size={20} 
+            color={selectedDay === 'today' ? Colors.textInverse : Colors.textSecondary} 
+            strokeWidth={2}
+          />
           <Text style={[styles.dayButtonText, selectedDay === 'today' && styles.dayButtonTextActive]}>
-            📅 Today
+            Today
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.dayButton, selectedDay === 'tomorrow' && styles.dayButtonActive]}
           onPress={() => setSelectedDay('tomorrow')}
+          activeOpacity={0.7}
         >
+          <Calendar 
+            size={20} 
+            color={selectedDay === 'tomorrow' ? Colors.textInverse : Colors.textSecondary} 
+            strokeWidth={2}
+          />
           <Text style={[styles.dayButtonText, selectedDay === 'tomorrow' && styles.dayButtonTextActive]}>
-            📅 Tomorrow
+            Tomorrow
           </Text>
         </TouchableOpacity>
       </View>
@@ -225,8 +238,13 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
         <TouchableOpacity
           style={[styles.modeButton, timeType === 'time_of_day' && styles.modeButtonActive]}
           onPress={() => onTimeTypeChange('time_of_day')}
+          activeOpacity={0.7}
         >
-          <Text style={[styles.modeIcon, timeType === 'time_of_day' && styles.modeIconActive]}>🌅</Text>
+          <Sunrise 
+            size={20} 
+            color={timeType === 'time_of_day' ? Colors.textInverse : Colors.textSecondary} 
+            strokeWidth={2}
+          />
           <Text style={[styles.modeText, timeType === 'time_of_day' && styles.modeTextActive]}>
             Time of Day
           </Text>
@@ -235,23 +253,21 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
         <TouchableOpacity
           style={[styles.modeButton, timeType === 'precise' && styles.modeButtonActive]}
           onPress={() => onTimeTypeChange('precise')}
+          activeOpacity={0.7}
         >
-          <Text style={[styles.modeIcon, timeType === 'precise' && styles.modeIconActive]}>🕐</Text>
+          <Clock 
+            size={20} 
+            color={timeType === 'precise' ? Colors.textInverse : Colors.textSecondary} 
+            strokeWidth={2}
+          />
           <Text style={[styles.modeText, timeType === 'precise' && styles.modeTextActive]}>
-            Choose Time
+            Exact Time
           </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.minimumNotice}>
-        <Text style={styles.minimumNoticeText}>
-          ⏱️ Games must be scheduled at least 45 minutes in advance
-        </Text>
-      </View>
-
       {/* Mode Content */}
       <View style={styles.modeContent}>
-
         {/* TIME OF DAY Mode */}
         {timeType === 'time_of_day' && (
           <View style={styles.timeOfDayContainer}>
@@ -288,6 +304,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                     }
                   }}
                   disabled={isDisabled}
+                  activeOpacity={0.7}
                 >
                   <Text style={[
                     styles.timeOfDayLabel, 
@@ -295,14 +312,13 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                     isDisabled && styles.timeOfDayLabelDisabled
                   ]}>
                     {label}
-                    {/* {isDisabled && '(too soon)'} */}
                   </Text>
                   <Text style={[
                     styles.timeOfDayTime, 
                     isSelected && styles.timeOfDayTimeActive,
                     isDisabled && styles.timeOfDayTimeDisabled
                   ]}>
-                    ~{formatTime(optionTime)}
+                    {formatTime(optionTime)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -313,18 +329,8 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
         {/* PRECISE Time Mode */}
         {timeType === 'precise' && (
           <View style={styles.preciseContainer}>
-            <View style={styles.preciseDisplay}>
-              <Text style={styles.preciseLabel}>Selected Time</Text>
-              <Text style={styles.preciseDay}>{formatDayLabel()}</Text>
-              <Text style={styles.preciseTime}>
-                {selectedTime ? formatTime(selectedTime) : formatTime(minTime)}
-              </Text>
-              <Text style={styles.preciseRelative}>
-                {formatRelativeTime(Math.round(sliderValue))}
-              </Text>
-            </View>
-
             <View style={styles.sliderContainer}>
+              <Text style={styles.sliderTitle}>Set Time</Text>
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -332,7 +338,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                 value={sliderValue}
                 onValueChange={handlePreciseTimeChange}
                 minimumTrackTintColor={Colors.primary}
-                maximumTrackTintColor={Colors.border}
+                maximumTrackTintColor={Colors.borderLight}
                 thumbTintColor={Colors.primary}
                 step={15} // 15-minute intervals
               />
@@ -342,12 +348,12 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                 </Text>
                 <Text style={styles.sliderLabel}>11:00 PM</Text>
               </View>
-            </View>
-
-            <View style={styles.helperBox}>
-              <Text style={styles.helperText}>
-                💡 Drag the slider to set a precise time (15-minute intervals)
-              </Text>
+              
+              <View style={styles.preciseDisplay}>
+                <Text style={styles.preciseDayInline}>{formatDayLabel()}</Text>
+                <Text style={styles.preciseTimeInline}>{selectedTime ? formatTime(selectedTime) : formatTime(minTime)}</Text>
+                <Text style={styles.preciseRelativeInline}>{formatRelativeTime(Math.round(sliderValue))}</Text>
+              </View>
             </View>
           </View>
         )}
@@ -366,12 +372,14 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
   },
   title: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: 4,
   },
   subtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     marginBottom: Spacing.md,
@@ -384,9 +392,12 @@ const styles = StyleSheet.create({
   },
   modeButton: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.backgroundSecondary,
     borderWidth: 2,
@@ -397,21 +408,16 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     ...Shadows.medium,
   },
-  modeIcon: {
-    fontSize: 24,
-    marginBottom: Spacing.xs,
-  },
-  modeIconActive: {
-    // Icon stays the same
-  },
   modeText: {
-    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
-    textAlign: 'center',
   },
   modeTextActive: {
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.textInverse,
+    fontWeight: Typography.fontWeight.bold,
   },
   // Day Selector
   daySelector: {
@@ -421,7 +427,10 @@ const styles = StyleSheet.create({
   },
   dayButton: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
@@ -435,11 +444,13 @@ const styles = StyleSheet.create({
     ...Shadows.medium,
   },
   dayButtonText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
   },
   dayButtonTextActive: {
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.textInverse,
     fontWeight: Typography.fontWeight.bold,
   },
@@ -464,12 +475,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   nowTitle: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
     marginBottom: Spacing.sm,
   },
   nowDescription: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textInverse,
     textAlign: 'center',
@@ -483,6 +496,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   timeDisplayText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xxl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
@@ -507,21 +521,25 @@ const styles = StyleSheet.create({
     ...Shadows.small,
   },
   timeOfDayLabel: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
   },
   timeOfDayLabelActive: {
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.primary,
     fontWeight: Typography.fontWeight.bold,
   },
   timeOfDayTime: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.textSecondary,
   },
   timeOfDayTimeActive: {
     color: Colors.primary,
+    fontWeight: Typography.fontWeight.bold,
   },
   timeOfDayOptionDisabled: {
     opacity: 0.5,
@@ -533,6 +551,9 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
   minimumNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     backgroundColor: Colors.backgroundSecondary,
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
@@ -541,41 +562,47 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.info,
   },
   minimumNoticeText: {
+    flex: 1,
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
-    textAlign: 'center',
   },
   // PRECISE Time Mode
   preciseContainer: {
     gap: Spacing.md,
   },
   preciseDisplay: {
-    backgroundColor: Colors.backgroundTertiary,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
     alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
   },
-  preciseLabel: {
+  preciseDayInline: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.sm,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text,
+    textAlign: 'center',
   },
-  preciseDay: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-    fontWeight: Typography.fontWeight.medium,
-  },
-  preciseTime: {
-    fontSize: Typography.fontSize.xxxl,
+  preciseTimeInline: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Typography.fontSize.xxl,
     fontWeight: Typography.fontWeight.bold,
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
+    color: Colors.text,
+    textAlign: 'center',
   },
-  preciseRelative: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
+  preciseRelativeInline: {
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
+    color: Colors.text,
+    textAlign: 'center',
   },
   sliderContainer: {
     backgroundColor: Colors.background,
@@ -583,6 +610,14 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  sliderTitle: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   slider: {
     width: '100%',
@@ -594,10 +629,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   sliderLabel: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textSecondary,
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
+    color: Colors.text,
   },
   helperBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     padding: Spacing.md,
     backgroundColor: Colors.backgroundSecondary,
     borderRadius: BorderRadius.md,
@@ -605,6 +645,8 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.info,
   },
   helperText: {
+    flex: 1,
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
   },

@@ -10,4 +10,6 @@ export { SkillLevelRangeSlider } from './SkillLevelRangeSlider';
 export { PlayersAndSkillStep } from './PlayersAndSkillStep';
 export { TimeSelector } from './TimeSelector';
 export { MultiRangeSlider } from './MultiRangeSlider';
+export { Text } from './Text';
+export { SportIcon } from './SportIcon';
 

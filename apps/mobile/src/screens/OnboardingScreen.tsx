@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
-import { Button } from '../components';
+import { Button, SportIcon } from '../components';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { getSports, saveSkillLevels, completeOnboarding } from '../services/auth';
 import type { Sport, SkillLevel } from '../types';
@@ -203,7 +203,7 @@ const SportSkillCard: React.FC<SportSkillCardProps> = ({ sport, value, onChange 
     <View style={[styles.sportCard, hasSelection && styles.sportCardSelected]}>
       <View style={styles.sportHeader}>
         <View style={styles.sportTitleRow}>
-          <Text style={styles.sportIcon}>{sport.icon || '🏃'}</Text>
+          <SportIcon sport={sport} size={24} />
           <Text style={styles.sportName}>{sport.name}</Text>
         </View>
         {currentSkill && (
@@ -269,6 +269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.lg,
     color: Colors.textSecondary,
   },
@@ -282,17 +283,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   welcomeText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.lg,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
   },
   title: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xxxl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: Spacing.sm,
   },
   subtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     lineHeight: Typography.fontSize.md * Typography.lineHeight.relaxed,
@@ -306,12 +310,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   progressText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
     marginBottom: Spacing.xs,
   },
   progressHint: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.primaryDark,
   },
@@ -346,10 +352,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  sportIcon: {
-    fontSize: 28,
-  },
   sportName: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
@@ -361,6 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   skillBadgeText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textInverse,
@@ -386,15 +391,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   labelText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textTertiary,
     textAlign: 'center',
   },
   labelTextActive: {
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.primary,
     fontWeight: Typography.fontWeight.bold,
   },
   skillDescription: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     fontStyle: 'italic',
@@ -410,6 +418,7 @@ const styles = StyleSheet.create({
 
   // Helper Text
   helperText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textTertiary,
     textAlign: 'center',

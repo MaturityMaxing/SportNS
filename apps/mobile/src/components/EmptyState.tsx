@@ -1,23 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme';
+import type { LucideIcon } from 'lucide-react-native';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: LucideIcon;
   title: string;
   description?: string;
   action?: React.ReactNode;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon,
+  icon: Icon,
   title,
   description,
   action,
 }) => {
   return (
     <View style={styles.container}>
-      {icon && <Text style={styles.icon}>{icon}</Text>}
+      {Icon && (
+        <View style={styles.iconContainer}>
+          <Icon size={56} color={Colors.textTertiary} strokeWidth={1.5} />
+        </View>
+      )}
       <Text style={styles.title}>{title}</Text>
       {description && <Text style={styles.description}>{description}</Text>}
       {action && <View style={styles.action}>{action}</View>}
@@ -32,22 +37,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.xl,
   },
-  icon: {
-    fontSize: 64,
+  iconContainer: {
     marginBottom: Spacing.lg,
+    opacity: 0.6,
   },
   title: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   description: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.lg,
+    lineHeight: Typography.fontSize.md * Typography.lineHeight.relaxed,
   },
   action: {
     marginTop: Spacing.md,

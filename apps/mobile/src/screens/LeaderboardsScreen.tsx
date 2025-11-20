@@ -7,22 +7,23 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Trophy } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { TopNav, Card, EmptyState } from '../components';
+import { TopNav, Card, EmptyState, SportIcon } from '../components';
 import { getCurrentUser, getProfile } from '../services/auth';
 import type { Profile } from '../types';
 
 // Sport icons (same as FreePlayScreen)
 const SPORTS = [
-  { id: 1, name: 'Basketball', emoji: '🏀', slug: 'basketball' },
-  { id: 2, name: 'Pickleball', emoji: '🏓', slug: 'pickleball' },
-  { id: 3, name: 'Volleyball', emoji: '🏐', slug: 'volleyball' },
-  { id: 4, name: 'Football', emoji: '🏈', slug: 'football' },
-  { id: 5, name: 'Ping Pong', emoji: '🏓', slug: 'ping-pong' },
-  { id: 6, name: 'Badminton', emoji: '🏸', slug: 'badminton' },
-  { id: 7, name: 'Tennis', emoji: '🎾', slug: 'tennis' },
-  { id: 8, name: 'Golf', emoji: '⛳', slug: 'golf' },
-  { id: 9, name: 'Running', emoji: '🏃', slug: 'running' },
+  { id: 1, name: 'Basketball', slug: 'basketball' },
+  { id: 2, name: 'Pickleball', slug: 'pickleball' },
+  { id: 3, name: 'Volleyball', slug: 'volleyball' },
+  { id: 4, name: 'Football', slug: 'football' },
+  { id: 5, name: 'Ping Pong', slug: 'ping-pong' },
+  { id: 6, name: 'Badminton', slug: 'badminton' },
+  { id: 7, name: 'Tennis', slug: 'tennis' },
+  { id: 8, name: 'Golf', slug: 'golf' },
+  { id: 9, name: 'Running', slug: 'running' },
 ];
 
 interface LeaderboardEntry {
@@ -89,7 +90,11 @@ export const LeaderboardsScreen: React.FC = () => {
           ]}
           onPress={() => setSelectedSport(sport.id)}
         >
-          <Text style={styles.sportTabEmoji}>{sport.emoji}</Text>
+          <SportIcon 
+            sport={{ slug: sport.slug }} 
+            size={20} 
+            color={selectedSport === sport.id ? Colors.textInverse : Colors.textSecondary}
+          />
           <Text
             style={[
               styles.sportTabText,
@@ -151,7 +156,6 @@ export const LeaderboardsScreen: React.FC = () => {
       <TopNav 
         title="NS SPORTS"
         rightAction={{
-          icon: '👤',
           label: getUserInitial(),
           onPress: handleProfilePress,
         }}
@@ -159,7 +163,9 @@ export const LeaderboardsScreen: React.FC = () => {
 
       {/* Coming Soon Message */}
       <View style={styles.centeredContainer}>
-        <Text style={styles.cupIcon}>🏆</Text>
+        <View style={styles.iconContainer}>
+          <Trophy size={64} color={Colors.textTertiary} strokeWidth={1.5} />
+        </View>
         <Text style={styles.title}>Leagues</Text>
         <Text style={styles.subtitle}>Coming Soon</Text>
       </View>
@@ -178,17 +184,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
   },
-  cupIcon: {
-    fontSize: 64,
+  iconContainer: {
     marginBottom: Spacing.lg,
+    opacity: 0.6,
   },
   title: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xxxl,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.sm,
   },
   subtitle: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.lg,
     color: Colors.textSecondary,
     fontWeight: Typography.fontWeight.medium,
@@ -213,10 +221,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     ...Shadows.small,
   },
-  sportTabEmoji: {
-    fontSize: Typography.fontSize.lg,
-  },
   sportTabText: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
     color: Colors.textSecondary,
@@ -260,6 +266,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#CD7F32',
   },
   rankText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
@@ -285,12 +292,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playerName: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: 2,
   },
   playerStats: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
   },
@@ -298,11 +307,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   eloLabel: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
     marginBottom: 2,
   },
   eloValue: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,

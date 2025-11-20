@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
+import { ArrowLeft, BarChart3, Bell, ChevronRight } from 'lucide-react-native';
 import { getCurrentUser, getProfile, signOut, updateUsername } from '../services/auth';
 import type { Profile } from '../types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
@@ -124,7 +125,7 @@ export default function ProfileScreen() {
           title="Profile"
           centered
           leftAction={{
-            icon: '←',
+            icon: ArrowLeft,
             onPress: () => navigation.goBack(),
           }}
         />
@@ -142,7 +143,7 @@ export default function ProfileScreen() {
           title="Profile"
           centered
           leftAction={{
-            icon: '←',
+            icon: ArrowLeft,
             onPress: () => navigation.goBack(),
           }}
         />
@@ -168,7 +169,7 @@ export default function ProfileScreen() {
         title="Profile"
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: () => navigation.goBack(),
         }}
       />
@@ -207,14 +208,18 @@ export default function ProfileScreen() {
         <TouchableOpacity 
           style={styles.primaryActionButton}
           onPress={handleReEvaluateSkills}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={styles.primaryActionIcon}>📊</Text>
+          <View style={styles.primaryActionIconContainer}>
+            <BarChart3 size={24} color={Colors.textInverse} strokeWidth={2} />
+          </View>
           <View style={styles.primaryActionContent}>
             <Text style={styles.primaryActionTitle}>Re-evaluate Skills</Text>
             <Text style={styles.primaryActionSubtitle}>Update your skill levels</Text>
           </View>
-          <Text style={styles.primaryActionArrow}>→</Text>
+          <View style={styles.primaryActionArrowContainer}>
+            <ChevronRight size={20} color={Colors.textInverse} strokeWidth={2} />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -225,7 +230,8 @@ export default function ProfileScreen() {
           onPress={() => navigation.navigate('NotificationSettings' as never)}
           activeOpacity={0.7}
         >
-          <Text style={styles.notificationButtonText}>🔔 Notification Settings</Text>
+          <Bell size={20} color={Colors.text} strokeWidth={2} />
+          <Text style={styles.notificationButtonText}>Notification Settings</Text>
         </TouchableOpacity>
       </View>
 
@@ -318,8 +324,8 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: BorderRadius.full,
-    borderWidth: 4,
-    borderColor: Colors.border,
+    borderWidth: 3,
+    borderColor: Colors.borderLight,
   },
   avatarPlaceholder: {
     backgroundColor: Colors.backgroundSecondary,
@@ -327,18 +333,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarPlaceholderText: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.huge,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textSecondary,
   },
   username: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   userId: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     fontWeight: Typography.fontWeight.medium,
@@ -350,6 +359,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
   changeUsernameText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     textDecorationLine: 'underline',
@@ -361,34 +371,38 @@ const styles = StyleSheet.create({
   },
   primaryActionButton: {
     backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    ...Shadows.medium,
+    gap: Spacing.sm,
+    ...Shadows.small,
   },
-  primaryActionIcon: {
-    fontSize: 32,
+  primaryActionIconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryActionContent: {
     flex: 1,
   },
   primaryActionTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,
     marginBottom: Spacing.xs,
   },
   primaryActionSubtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textInverse,
     opacity: 0.9,
   },
-  primaryActionArrow: {
-    fontSize: Typography.fontSize.xxl,
-    color: Colors.textInverse,
-    fontWeight: Typography.fontWeight.bold,
+  primaryActionArrowContainer: {
+    width: 24,
+    alignItems: 'center',
   },
   // Notification Settings Button
   notificationButtonContainer: {
@@ -397,13 +411,17 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.sm,
+    justifyContent: 'center',
   },
   notificationButtonText: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.md,
     color: Colors.text,
     fontWeight: Typography.fontWeight.medium,
@@ -416,7 +434,7 @@ const styles = StyleSheet.create({
   signOutButton: {
     backgroundColor: Colors.error,
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -424,15 +442,18 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   signOutButtonText: {
+    fontFamily: Typography.fontFamily.semibold,
     color: Colors.textInverse,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
   },
   errorText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
   },
   errorSubtext: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textTertiary,
     marginTop: Spacing.sm,
@@ -447,6 +468,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   retryButtonText: {
+    fontFamily: Typography.fontFamily.semibold,
     color: Colors.textInverse,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
@@ -461,31 +483,34 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     width: '100%',
     maxWidth: 400,
-    ...Shadows.large,
+    ...Shadows.medium,
   },
   modalTitle: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xxl,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
   modalSubtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     marginBottom: Spacing.lg,
   },
   input: {
     backgroundColor: Colors.backgroundSecondary,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.text,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
     marginBottom: Spacing.lg,
   },
   modalButtons: {

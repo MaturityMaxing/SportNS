@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
+import { ArrowLeft, Clock, Users, MessageSquare, AlertTriangle, Info } from 'lucide-react-native';
 import { getCurrentUser } from '../services/auth';
 import {
   getNotificationSettings,
@@ -20,7 +21,7 @@ import {
 } from '../services/notifications';
 import type { NotificationSettings } from '../types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { TopNav } from '../components';
+import { TopNav, Card } from '../components';
 
 /**
  * NotificationSettingsScreen - Manage notification preferences
@@ -134,7 +135,7 @@ export default function NotificationSettingsScreen() {
           title="Notifications"
           centered
           leftAction={{
-            icon: '←',
+            icon: ArrowLeft,
             onPress: () => navigation.goBack(),
           }}
         />
@@ -152,7 +153,7 @@ export default function NotificationSettingsScreen() {
           title="Notifications"
           centered
           leftAction={{
-            icon: '←',
+            icon: ArrowLeft,
             onPress: () => navigation.goBack(),
           }}
         />
@@ -169,7 +170,7 @@ export default function NotificationSettingsScreen() {
         title="Notifications"
         centered
         leftAction={{
-          icon: '←',
+          icon: ArrowLeft,
           onPress: () => navigation.goBack(),
         }}
       />
@@ -177,17 +178,27 @@ export default function NotificationSettingsScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Permission Status */}
         {hasPermission === false && (
-          <View style={styles.permissionBanner}>
-            <Text style={styles.permissionBannerTitle}>⚠️ Notifications Disabled</Text>
-            <Text style={styles.permissionBannerText}>
-              Enable notifications to receive game reminders and updates.
-            </Text>
-            <TouchableOpacity
-              style={styles.permissionButton}
-              onPress={handleRequestPermissions}
-            >
-              <Text style={styles.permissionButtonText}>Enable Notifications</Text>
-            </TouchableOpacity>
+          <View style={styles.permissionBannerContainer}>
+            <Card style={styles.permissionBanner}>
+              <View style={styles.permissionBannerContent}>
+                <View style={styles.permissionBannerIconContainer}>
+                  <AlertTriangle size={24} color={Colors.warning} strokeWidth={2} />
+                </View>
+                <View style={styles.permissionBannerTextContainer}>
+                  <Text style={styles.permissionBannerTitle}>Notifications Disabled</Text>
+                  <Text style={styles.permissionBannerText}>
+                    Enable notifications to receive game reminders and updates.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.permissionButton}
+                onPress={handleRequestPermissions}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.permissionButtonText}>Enable Notifications</Text>
+              </TouchableOpacity>
+            </Card>
           </View>
         )}
 
@@ -201,55 +212,69 @@ export default function NotificationSettingsScreen() {
         {/* Settings Section: Game Reminders */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Game Reminders</Text>
-
-          <SettingItem
-            icon="⏰"
-            title="30 minutes before game"
-            description="Get notified 30 minutes before your game starts"
-            value={settings.notify_30min_before_game}
-            onValueChange={(value) => handleToggleSetting('notify_30min_before_game', value)}
-            disabled={isSaving}
-          />
-
-          <SettingItem
-            icon="⏱️"
-            title="5 minutes before game"
-            description="Get notified 5 minutes before your game starts"
-            value={settings.notify_5min_before_game}
-            onValueChange={(value) => handleToggleSetting('notify_5min_before_game', value)}
-            disabled={isSaving}
-          />
+          
+          <Card style={styles.settingsCard}>
+            <SettingItem
+              icon={Clock}
+              title="30 minutes before game"
+              description="Get notified 30 minutes before your game starts"
+              value={settings.notify_30min_before_game}
+              onValueChange={(value) => handleToggleSetting('notify_30min_before_game', value)}
+              disabled={isSaving}
+            />
+            
+            <View style={styles.settingDivider} />
+            
+            <SettingItem
+              icon={Clock}
+              title="5 minutes before game"
+              description="Get notified 5 minutes before your game starts"
+              value={settings.notify_5min_before_game}
+              onValueChange={(value) => handleToggleSetting('notify_5min_before_game', value)}
+              disabled={isSaving}
+            />
+          </Card>
         </View>
 
         {/* Settings Section: Game Activity */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Game Activity</Text>
-
-          <SettingItem
-            icon="👥"
-            title="Player joins game"
-            description="Get notified when someone joins your game"
-            value={settings.notify_player_joins_game}
-            onValueChange={(value) => handleToggleSetting('notify_player_joins_game', value)}
-            disabled={isSaving}
-          />
-
-          <SettingItem
-            icon="💬"
-            title="New chat message"
-            description="Get notified when there's a new message in game chat"
-            value={settings.notify_new_chat_message}
-            onValueChange={(value) => handleToggleSetting('notify_new_chat_message', value)}
-            disabled={isSaving}
-          />
+          
+          <Card style={styles.settingsCard}>
+            <SettingItem
+              icon={Users}
+              title="Player joins game"
+              description="Get notified when someone joins your game"
+              value={settings.notify_player_joins_game}
+              onValueChange={(value) => handleToggleSetting('notify_player_joins_game', value)}
+              disabled={isSaving}
+            />
+            
+            <View style={styles.settingDivider} />
+            
+            <SettingItem
+              icon={MessageSquare}
+              title="New chat message"
+              description="Get notified when there's a new message in game chat"
+              value={settings.notify_new_chat_message}
+              onValueChange={(value) => handleToggleSetting('notify_new_chat_message', value)}
+              disabled={isSaving}
+            />
+          </Card>
         </View>
 
         {/* Info Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
-          <Text style={styles.infoText}>
-            Notifications are sent based on your game schedule and activity. Make sure to have notifications enabled in your device settings.
-          </Text>
+        <View style={styles.infoSectionContainer}>
+          <Card variant="flat" style={styles.infoCard}>
+            <View style={styles.infoContent}>
+              <View style={styles.infoIconContainer}>
+                <Info size={20} color={Colors.textSecondary} strokeWidth={2} />
+              </View>
+              <Text style={styles.infoText}>
+                Notifications are sent based on your game schedule and activity. Make sure to have notifications enabled in your device settings.
+              </Text>
+            </View>
+          </Card>
         </View>
       </ScrollView>
     </View>
@@ -257,7 +282,7 @@ export default function NotificationSettingsScreen() {
 }
 
 interface SettingItemProps {
-  icon: string;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   title: string;
   description: string;
   value: boolean;
@@ -265,11 +290,13 @@ interface SettingItemProps {
   disabled?: boolean;
 }
 
-function SettingItem({ icon, title, description, value, onValueChange, disabled }: SettingItemProps) {
+function SettingItem({ icon: Icon, title, description, value, onValueChange, disabled }: SettingItemProps) {
   return (
     <View style={styles.settingItem}>
       <View style={styles.settingContent}>
-        <Text style={styles.settingIcon}>{icon}</Text>
+        <View style={styles.settingIconContainer}>
+          <Icon size={20} color={Colors.textSecondary} strokeWidth={2} />
+        </View>
         <View style={styles.settingTextContainer}>
           <Text style={styles.settingTitle}>{title}</Text>
           <Text style={styles.settingDescription}>{description}</Text>
@@ -279,9 +306,9 @@ function SettingItem({ icon, title, description, value, onValueChange, disabled 
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+        trackColor={{ false: Colors.borderLight, true: Colors.primaryLight }}
         thumbColor={value ? Colors.primary : Colors.textTertiary}
-        ios_backgroundColor={Colors.border}
+        ios_backgroundColor={Colors.borderLight}
       />
     </View>
   );
@@ -301,67 +328,84 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  permissionBannerContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+  },
   permissionBanner: {
     backgroundColor: Colors.warningLight,
-    margin: Spacing.md,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.warning,
   },
+  permissionBannerContent: {
+    flexDirection: 'row',
+    marginBottom: Spacing.md,
+  },
+  permissionBannerIconContainer: {
+    marginRight: Spacing.md,
+  },
+  permissionBannerTextContainer: {
+    flex: 1,
+  },
   permissionBannerTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.warning,
     marginBottom: Spacing.xs,
   },
   permissionBannerText: {
-    fontSize: Typography.fontSize.md,
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
-    marginBottom: Spacing.md,
-    lineHeight: Typography.fontSize.md * Typography.lineHeight.relaxed,
+    lineHeight: Typography.fontSize.sm * Typography.lineHeight.relaxed,
   },
   permissionButton: {
     backgroundColor: Colors.warning,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignSelf: 'flex-start',
   },
   permissionButtonText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
     color: Colors.textInverse,
   },
   descriptionContainer: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   description: {
-    fontSize: Typography.fontSize.md,
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
-    lineHeight: Typography.fontSize.md * Typography.lineHeight.relaxed,
+    lineHeight: Typography.fontSize.sm * Typography.lineHeight.relaxed,
   },
   section: {
     marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
+  },
+  settingsCard: {
+    marginHorizontal: Spacing.md,
+    padding: 0,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   settingContent: {
     flexDirection: 'row',
@@ -369,44 +413,57 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: Spacing.md,
   },
-  settingIcon: {
-    fontSize: 28,
+  settingIconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: Spacing.md,
   },
   settingTextContainer: {
     flex: 1,
   },
   settingTitle: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+    fontWeight: Typography.fontWeight.medium,
     color: Colors.text,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.xs / 2,
   },
   settingDescription: {
-    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
-    lineHeight: Typography.fontSize.sm * Typography.lineHeight.relaxed,
+    lineHeight: Typography.fontSize.xs * Typography.lineHeight.relaxed,
   },
-  infoSection: {
-    flexDirection: 'row',
-    backgroundColor: Colors.backgroundSecondary,
-    margin: Spacing.md,
+  settingDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginHorizontal: Spacing.md,
+  },
+  infoSectionContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.lg,
+  },
+  infoCard: {
     padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
-  infoIcon: {
-    fontSize: 20,
+  infoContent: {
+    flexDirection: 'row',
+  },
+  infoIconContainer: {
     marginRight: Spacing.sm,
+    marginTop: 2,
   },
   infoText: {
     flex: 1,
-    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
-    lineHeight: Typography.fontSize.sm * Typography.lineHeight.relaxed,
+    lineHeight: Typography.fontSize.xs * Typography.lineHeight.relaxed,
   },
   errorText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.error,
   },

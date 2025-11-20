@@ -7,7 +7,10 @@ import {
   ViewStyle,
   TextStyle,
   StyleProp,
+  Animated,
+  View,
 } from 'react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../theme';
 
 interface ButtonProps {
@@ -20,6 +23,7 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   fullWidth?: boolean;
+  rightIcon?: LucideIcon;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -32,8 +36,28 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   fullWidth = false,
+  rightIcon: RightIcon,
 }) => {
   const isDisabled = disabled || loading;
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 10,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 10,
+    }).start();
+  };
 
   // Get variant styles
   const variantStyle = variant === 'primary' ? styles.buttonPrimary :
@@ -55,43 +79,60 @@ export const Button: React.FC<ButtonProps> = ({
                         styles.buttonTextMedium;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={isDisabled}
-      style={[
-        styles.button,
-        variantStyle,
-        sizeStyle,
-        isDisabled && styles.buttonDisabled,
-        fullWidth && styles.buttonFullWidth,
-        style,
-      ]}
-      activeOpacity={0.7}
-    >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.textInverse}
-        />
-      ) : (
-        <Text
-          style={[
-            styles.buttonText,
-            textVariantStyle,
-            textSizeStyle,
-            isDisabled && styles.buttonTextDisabled,
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, fullWidth && styles.buttonFullWidth, style]}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={isDisabled}
+        style={[
+          styles.button,
+          variantStyle,
+          sizeStyle,
+          isDisabled && styles.buttonDisabled,
+          fullWidth && styles.buttonFullWidth,
+        ]}
+        activeOpacity={0.85}
+      >
+        {loading ? (
+          <ActivityIndicator
+            color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.textInverse}
+            size="small"
+          />
+        ) : (
+          <>
+            <Text
+              style={[
+                styles.buttonText,
+                textVariantStyle,
+                textSizeStyle,
+                isDisabled && styles.buttonTextDisabled,
+                textStyle,
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={false}
+            >
+              {title}
+            </Text>
+            {RightIcon && (
+              <View style={styles.rightIconContainer}>
+                <RightIcon 
+                  size={size === 'large' ? 20 : size === 'small' ? 16 : 18} 
+                  color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.textInverse} 
+                  strokeWidth={2} 
+                />
+              </View>
+            )}
+          </>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -131,7 +172,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonText: {
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: Typography.fontFamily.medium,
+    fontWeight: Typography.fontWeight.medium,
+    letterSpacing: 0.3,
   },
   buttonTextPrimary: {
     color: Colors.textInverse,
@@ -156,6 +199,11 @@ const styles = StyleSheet.create({
   },
   buttonTextDisabled: {
     // Opacity handled by parent
+  },
+  rightIconContainer: {
+    marginLeft: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

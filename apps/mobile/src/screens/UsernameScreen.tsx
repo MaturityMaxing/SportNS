@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../components';
+import { Button, SportIcon } from '../components';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
 import { signInWithUsername } from '../services/auth';
 import type { Profile } from '../types';
@@ -81,7 +81,9 @@ export const UsernameScreen: React.FC<UsernameScreenProps> = ({ onSuccess }) => 
         >
           {/* Header Section */}
           <View style={styles.header}>
-            <Text style={styles.appIcon}>🏀</Text>
+            <View style={styles.appIconContainer}>
+              <SportIcon sport={{ slug: 'basketball' }} size={64} />
+            </View>
             <Text style={styles.appName}>NS Sports</Text>
             <Text style={styles.tagline}>Connect. Play. Compete.</Text>
           </View>
@@ -171,17 +173,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xxxl,
   },
-  appIcon: {
-    fontSize: 64,
+  appIconContainer: {
     marginBottom: Spacing.md,
   },
   appName: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xxxl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
   tagline: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     fontWeight: Typography.fontWeight.medium,
@@ -192,12 +195,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxxl,
   },
   welcomeTitle: {
+    fontFamily: Typography.fontFamily.bold,
     fontSize: Typography.fontSize.xxl,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.text,
     marginBottom: Spacing.md,
   },
   welcomeText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     lineHeight: Typography.fontSize.md * Typography.lineHeight.relaxed,
@@ -208,6 +213,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   label: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
@@ -218,6 +224,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundSecondary,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.lg,
     color: Colors.text,
     borderWidth: 2,
@@ -227,12 +234,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
   },
   helperText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textTertiary,
     marginTop: Spacing.xs,
     marginLeft: Spacing.xs,
   },
   errorText: {
+    fontFamily: Typography.fontFamily.medium,
     fontSize: Typography.fontSize.sm,
     color: Colors.error,
     marginTop: Spacing.xs,

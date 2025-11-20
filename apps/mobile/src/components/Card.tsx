@@ -31,15 +31,17 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
   },
   cardDefault: {
     backgroundColor: Colors.surface,
-    ...Shadows.medium,
+    ...Shadows.small,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
   cardOutlined: {
     backgroundColor: Colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
   },
   cardFlat: {

@@ -9,8 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { Clock, Users, BarChart3, CheckCircle2, Activity } from 'lucide-react-native';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../theme';
-import { TopNav, Card, EmptyState } from '../components';
+import { TopNav, Card, EmptyState, SportIcon } from '../components';
 import { getUserGames, subscribeToGameUpdates, unsubscribeFromGameUpdates, triggerAutoEndOldGames } from '../services/games';
 import { getCurrentUser, getProfile } from '../services/auth';
 import type { GameEventWithDetails, Profile } from '../types';
@@ -151,7 +152,7 @@ export const MyGamesScreen: React.FC = () => {
     const diffInHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (timeType === 'now') {
-      return 'Right now! 🏃‍♂️';
+      return 'Right now!';
     }
 
     if (diffInHours < 1) {
@@ -205,7 +206,7 @@ export const MyGamesScreen: React.FC = () => {
         <TopNav 
           title="NS SPORTS" 
           rightAction={{
-            icon: '👤',
+            label: getUserInitial(),
             onPress: handleProfilePress,
           }}
         />
@@ -221,7 +222,6 @@ export const MyGamesScreen: React.FC = () => {
       <TopNav 
         title="NS SPORTS"
         rightAction={{
-          icon: '👤',
           label: getUserInitial(),
           onPress: handleProfilePress,
         }}
@@ -245,24 +245,26 @@ export const MyGamesScreen: React.FC = () => {
         </View>
 
         {/* Games List */}
-        <View style={styles.gamesSection}>
-          {games.length === 0 ? (
+        {games.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
             <EmptyState
-              icon="⚽"
+              icon={Activity}
               title="No Games Yet"
               description="Join games from the Dashboard to see them here"
             />
-          ) : (
-            games.map((game) => (
+          </View>
+        ) : (
+          <View style={styles.gamesSection}>
+            {games.map((game) => (
               <GameCard
                 key={game.id}
                 game={game}
                 onPress={handleGamePress}
                 formatTime={formatTime}
               />
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -288,17 +290,19 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, formatTime }) => {
       <Card style={styles.gameCard}>
         {/* Header - Minimal */}
         <View style={styles.gameHeader}>
-          <Text style={styles.sportIcon}>{game.sport?.icon || '🏃'}</Text>
+          <View style={styles.sportIconContainer}>
+            <SportIcon sport={game.sport} size={32} />
+          </View>
           <View style={styles.gameInfoCompact}>
             {/* Sport Name */}
             <Text style={styles.sportName}>{game.sport?.name || 'Unknown Sport'}</Text>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>⏰</Text>
+              <Clock size={16} color={Colors.textSecondary} strokeWidth={2} />
               <Text style={styles.detailText}>{timeString}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailIcon}>👥</Text>
+              <Users size={16} color={Colors.textSecondary} strokeWidth={2} />
               <Text style={styles.detailText}>
                 {(() => {
                   const current = game.current_players ?? 0;
@@ -315,19 +319,18 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPress, formatTime }) => {
                 })()}
               </Text>
             </View>
-            {(game.skill_level_min || game.skill_level_max) && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailIcon}>📊</Text>
-                <Text style={styles.detailText}>
-                  {game.skill_level_min ? SKILL_LEVEL_LABELS[game.skill_level_min] : 'Any'}
-                  {' - '}
-                  {game.skill_level_max ? SKILL_LEVEL_LABELS[game.skill_level_max] : 'Any'}
-                </Text>
-              </View>
-            )}
+            <View style={styles.detailRow}>
+              <BarChart3 size={16} color={Colors.textSecondary} strokeWidth={2} />
+              <Text style={styles.detailText}>
+                {game.skill_level_min && game.skill_level_max
+                  ? `${SKILL_LEVEL_LABELS[game.skill_level_min]} - ${SKILL_LEVEL_LABELS[game.skill_level_max]}`
+                  : 'All levels'}
+              </Text>
+            </View>
             {isConfirmed && (
               <View style={styles.confirmedBadgeInline}>
-                <Text style={styles.confirmedBadgeText}>✓ Confirmed</Text>
+                <CheckCircle2 size={14} color={Colors.textInverse} strokeWidth={2} />
+                <Text style={styles.confirmedBadgeText}>Confirmed</Text>
               </View>
             )}
           </View>
@@ -351,6 +354,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
   },
@@ -360,15 +364,24 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
   },
   title: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xxxl,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
   subtitle: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.md,
     color: Colors.textSecondary,
     lineHeight: Typography.lineHeight.normal * Typography.fontSize.md,
+  },
+  // Empty State Container
+  emptyStateContainer: {
+    flex: 1,
+    minHeight: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Games Section
   gamesSection: {
@@ -392,26 +405,36 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.xs,
   },
-  sportIcon: {
-    fontSize: 40,
+  sportIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.md,
   },
   sportName: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
   confirmedBadgeInline: {
-    backgroundColor: Colors.available,
+    backgroundColor: Colors.success,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
     alignSelf: 'flex-start',
     marginTop: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   confirmedBadgeText: {
+    fontFamily: Typography.fontFamily.semibold,
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.textInverse,
   },
   detailRow: {
@@ -419,11 +442,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  detailIcon: {
-    fontSize: 16,
-    width: 20,
-  },
   detailText: {
+    fontFamily: Typography.fontFamily.regular,
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     flex: 1,

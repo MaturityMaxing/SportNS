@@ -3,6 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { UsernameScreen, OnboardingScreen, HomeScreen } from './src/screens';
 import { LoadingScreen } from './src/components';
 import { onAuthStateChange, getProfile } from './src/services/auth';
@@ -30,6 +37,14 @@ type AppState =
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [appState, setAppState] = useState<AppState>({ state: 'loading' });
+  
+  // Load custom fonts
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
     // Set up auth state listener
@@ -98,8 +113,8 @@ export default function App() {
     }
   };
 
-  // Show loading screen
-  if (appState.state === 'loading') {
+  // Show loading screen while fonts are loading or app is initializing
+  if (!fontsLoaded || appState.state === 'loading') {
     return (
       <SafeAreaProvider>
         <LoadingScreen message="Loading SportNS..." />
